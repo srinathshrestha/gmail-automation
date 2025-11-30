@@ -6,8 +6,8 @@ import { getSession } from "@/lib/session";
 import { setActiveGoogleAccount } from "@/lib/auth-helpers";
 
 export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -15,7 +15,7 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const googleAccountId = params.id;
+    const { id: googleAccountId } = await params;
 
     await setActiveGoogleAccount(session.userId, googleAccountId);
 

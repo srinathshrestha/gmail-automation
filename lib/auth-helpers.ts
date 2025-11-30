@@ -2,7 +2,7 @@
 // Handles user and GoogleAccount creation/updates
 
 import { db, users, googleAccounts } from "./db";
-import { encrypt, decrypt } from "./encryption";
+import { encrypt } from "./encryption";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 

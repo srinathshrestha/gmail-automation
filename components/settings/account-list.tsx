@@ -132,7 +132,7 @@ export function AccountList() {
         <div className="flex items-center justify-between">
           <CardTitle>Connected Gmail Accounts</CardTitle>
           <Button onClick={handleConnect} size="sm">
-            <Icon name="Plus" className="mr-2" size={16} />
+            <Icon name="Mail" className="mr-2" size={16} />
             Connect Account
           </Button>
         </div>
@@ -143,8 +143,8 @@ export function AccountList() {
             <Icon name="Mail" className="h-12 w-12 mx-auto mb-4 opacity-50" size={48} />
             <p className="mb-4">No Gmail accounts connected</p>
             <Button onClick={handleConnect}>
-              <Icon name="Plus" className="mr-2" size={16} />
-              Connect Your First Account
+            <Icon name="Mail" className="mr-2" size={16} />
+            Connect Your First Account
             </Button>
           </div>
         ) : (

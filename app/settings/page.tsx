@@ -10,7 +10,6 @@ import { SyncControls } from "@/components/settings/sync-controls";
 import { SenderSelection } from "@/components/settings/sender-selection";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icon";
-import { Skeleton } from "@/components/ui/skeleton";
 import { showToast } from "@/components/ui/toast";
 
 export default function SettingsPage() {

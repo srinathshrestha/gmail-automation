@@ -15,6 +15,7 @@ export interface SessionPayload {
   userId: string;
   username: string;
   email?: string | null;
+  [key: string]: unknown;
 }
 
 /**

@@ -9,7 +9,6 @@ import { MessageFilters } from "@/components/messages/message-filters";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { showToast } from "@/components/ui/toast";
 import { DeletionProgress } from "@/components/ui/deletion-progress";
@@ -99,7 +98,6 @@ export default function MessagesPage() {
 
     // Check cache first (only if filters haven't changed)
     const now = Date.now();
-    const cacheKey = `${senderFilter}-${categoryFilter}-${showOnlyCandidates}`;
     
     if (
       !silent &&
