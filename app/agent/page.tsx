@@ -167,7 +167,13 @@ export default function AgentPage() {
   async function fetchCandidates() {
     try {
       setLoading(true);
-      const response = await fetch("/api/agent/delete-candidates");
+      const response = await fetch("/api/agent/delete-candidates", {
+        // Add cache-busting to ensure fresh data
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
 
       // Handle 404 - no Gmail account
       if (response.status === 404) {
@@ -180,9 +186,18 @@ export default function AgentPage() {
         throw new Error("Failed to fetch candidates");
       }
       const data = await response.json();
-      setCandidates(data.candidates || []);
+      console.log("Fetched candidates:", data.candidates?.length || 0);
+      
+      const newCandidates = data.candidates || [];
+      setCandidates(newCandidates);
       setError(null);
+      
+      // Save to localStorage
+      if (newCandidates.length > 0) {
+        localStorage.setItem("agentCandidates", JSON.stringify(newCandidates));
+      }
     } catch (err) {
+      console.error("Error fetching candidates:", err);
       setError(
         err instanceof Error ? err.message : "Failed to load candidates"
       );
@@ -196,6 +211,8 @@ export default function AgentPage() {
       setRunningSuggestions(true);
       localStorage.setItem("agentRunning", "true");
       setError(null);
+      // Show loading state while processing
+      setLoading(true);
 
       // Check session before making request
       const sessionCheck = await fetch("/api/auth/session");
@@ -217,11 +234,19 @@ export default function AgentPage() {
       }
 
       const data = await response.json();
-      // Clear cached candidates to force fresh fetch
+      console.log("Agent suggestions completed:", data);
+      
+      // Clear all cached data to ensure fresh fetch
       localStorage.removeItem("agentCandidates");
       localStorage.removeItem("agentSelectedIds");
+      
+      // Clear current state before fetching
+      setCandidates([]);
+      setSelectedIds(new Set());
+      
       // Refresh candidates after running suggestions
       await fetchCandidates();
+      
       showToast(
         `Evaluated ${data.evaluated} emails. Found ${data.candidates} deletion candidates.`,
         "success"
@@ -231,6 +256,7 @@ export default function AgentPage() {
         err instanceof Error ? err.message : "Failed to run suggestions";
       setError(errorMessage);
       showToast(errorMessage, "error");
+      setLoading(false);
 
       // If session expired, redirect to login
       if (
@@ -434,7 +460,7 @@ export default function AgentPage() {
         <div className="flex gap-2 flex-wrap">
           <Button
             onClick={runSuggestions}
-            disabled={runningSuggestions}
+            disabled={runningSuggestions || loading}
             variant="outline"
             className="relative overflow-hidden group"
           >
@@ -444,7 +470,7 @@ export default function AgentPage() {
               size={16} 
             />
             {runningSuggestions ? (
-              <span className="animate-pulse">Running...</span>
+              <span className="animate-pulse">Analyzing emails...</span>
             ) : (
               "Run Suggestions"
             )}
