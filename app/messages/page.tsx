@@ -62,7 +62,6 @@ export default function MessagesPage() {
   // Load cached data from localStorage on mount for instant display
   useEffect(() => {
     const cachedMessages = localStorage.getItem("messagesCache");
-    const cachedFilters = localStorage.getItem("messagesFilters");
     
     if (cachedMessages) {
       try {
@@ -103,7 +102,7 @@ export default function MessagesPage() {
     if (status === "authenticated" && session) {
       // Fetch in background even if we have cached data
       fetchMessages(messages.length > 0); // Silent if we have data
-      fetchFilterOptions(senders.length > 0); // Silent if we have senders
+      fetchFilterOptions();
     }
   }, [status, session, router, senderFilter, categoryFilter, showOnlyCandidates]);
 
@@ -284,7 +283,7 @@ export default function MessagesPage() {
     }
   }
 
-  async function fetchFilterOptions(silent = false) {
+  async function fetchFilterOptions() {
     try {
       const response = await fetch("/api/messages/filters");
       if (response.ok) {
