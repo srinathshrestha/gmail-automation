@@ -48,6 +48,34 @@ function SettingsPageContent() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
+  // Restore sync state from localStorage on mount
+  useEffect(() => {
+    const savedSyncStatus = localStorage.getItem("syncInProgress");
+    const savedSyncProgress = localStorage.getItem("syncProgress");
+
+    if (savedSyncStatus === "true") {
+      setSyncing(true);
+    }
+
+    if (savedSyncProgress) {
+      try {
+        const parsedProgress = JSON.parse(savedSyncProgress);
+        setSyncProgress(parsedProgress);
+      } catch (e) {
+        console.error("Failed to parse saved sync progress:", e);
+      }
+    }
+  }, []);
+
+  // Save sync progress to localStorage whenever it changes
+  useEffect(() => {
+    if (syncProgress) {
+      localStorage.setItem("syncProgress", JSON.stringify(syncProgress));
+    } else {
+      localStorage.removeItem("syncProgress");
+    }
+  }, [syncProgress]);
+
   // Handle OAuth callback messages (success or error)
   useEffect(() => {
     // Check for success message
@@ -162,6 +190,7 @@ function SettingsPageContent() {
             } else if (data.status === "completed") {
               // Sync completed - wait a bit for animations to finish before showing toast
               setSyncing(false);
+              localStorage.removeItem("syncInProgress");
               
               // Give the animated counters time to finish their animation (400ms + 100ms buffer)
               setTimeout(() => {
@@ -176,12 +205,15 @@ function SettingsPageContent() {
               // Clear progress after a short delay to let users see the final numbers
               setTimeout(() => {
                 setSyncProgress(null);
+                localStorage.removeItem("syncProgress");
               }, 1500);
             } else if (data.status === "failed") {
               // Sync failed
               setSyncing(false);
+              localStorage.removeItem("syncInProgress");
               setError(data.errorMessage || "Sync failed");
               setSyncProgress(null);
+              localStorage.removeItem("syncProgress");
             }
           } else {
             // No active sync
@@ -212,6 +244,7 @@ function SettingsPageContent() {
   async function handleSync() {
     try {
       setSyncing(true);
+      localStorage.setItem("syncInProgress", "true");
       setError(null);
       setSyncProgress(null);
 
@@ -242,6 +275,7 @@ function SettingsPageContent() {
           // Keep syncing=true so useEffect continues polling
         } else {
           setSyncing(false);
+          localStorage.removeItem("syncInProgress");
           throw new Error(errorMsg);
         }
       } else {
@@ -257,8 +291,10 @@ function SettingsPageContent() {
       }
     } catch (err) {
       setSyncing(false);
+      localStorage.removeItem("syncInProgress");
       setError(err instanceof Error ? err.message : "Failed to sync");
       setSyncProgress(null);
+      localStorage.removeItem("syncProgress");
     }
   }
 

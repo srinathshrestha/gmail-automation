@@ -57,6 +57,35 @@ export default function AgentPage() {
     errors: number;
   } | null>(null);
 
+  // Restore state from localStorage on mount
+  useEffect(() => {
+    const savedCandidates = localStorage.getItem("agentCandidates");
+    const savedSelectedIds = localStorage.getItem("agentSelectedIds");
+    const savedRunningStatus = localStorage.getItem("agentRunning");
+
+    if (savedCandidates) {
+      try {
+        const parsedCandidates = JSON.parse(savedCandidates);
+        setCandidates(parsedCandidates);
+      } catch (e) {
+        console.error("Failed to parse saved candidates:", e);
+      }
+    }
+
+    if (savedSelectedIds) {
+      try {
+        const parsedIds = JSON.parse(savedSelectedIds);
+        setSelectedIds(new Set(parsedIds));
+      } catch (e) {
+        console.error("Failed to parse saved selected IDs:", e);
+      }
+    }
+
+    if (savedRunningStatus === "true") {
+      setRunningSuggestions(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -64,13 +93,39 @@ export default function AgentPage() {
     }
 
     if (status === "authenticated" && session) {
-      fetchCandidates();
+      // Only fetch if we don't have cached data
+      const savedCandidates = localStorage.getItem("agentCandidates");
+      if (!savedCandidates) {
+        fetchCandidates();
+      } else {
+        setLoading(false);
+      }
     }
   }, [status, session, router]);
 
-  // Auto-select all candidates on load
+  // Save candidates to localStorage whenever they change
   useEffect(() => {
-    if (candidates.length > 0 && selectedIds.size === 0) {
+    if (candidates.length > 0) {
+      localStorage.setItem("agentCandidates", JSON.stringify(candidates));
+    }
+  }, [candidates]);
+
+  // Save selectedIds to localStorage whenever they change
+  useEffect(() => {
+    if (selectedIds.size > 0) {
+      localStorage.setItem(
+        "agentSelectedIds",
+        JSON.stringify(Array.from(selectedIds))
+      );
+    } else {
+      localStorage.removeItem("agentSelectedIds");
+    }
+  }, [selectedIds]);
+
+  // Auto-select all candidates on load if none are selected
+  useEffect(() => {
+    const savedSelectedIds = localStorage.getItem("agentSelectedIds");
+    if (candidates.length > 0 && selectedIds.size === 0 && !savedSelectedIds) {
       setSelectedIds(new Set(candidates.map((c) => c.id)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,6 +161,7 @@ export default function AgentPage() {
   async function runSuggestions() {
     try {
       setRunningSuggestions(true);
+      localStorage.setItem("agentRunning", "true");
       setError(null);
 
       // Check session before making request
@@ -151,6 +207,7 @@ export default function AgentPage() {
       }
     } finally {
       setRunningSuggestions(false);
+      localStorage.removeItem("agentRunning");
     }
   }
 
@@ -217,6 +274,7 @@ export default function AgentPage() {
             } else if (data.type === "complete") {
               setDeletionProgress(null);
               setSelectedIds(new Set());
+              localStorage.removeItem("agentSelectedIds");
               await fetchCandidates();
               showToast(
                 `Successfully deleted ${data.deleted} email${
@@ -335,9 +393,21 @@ export default function AgentPage() {
             onClick={runSuggestions}
             disabled={runningSuggestions}
             variant="outline"
+            className="relative overflow-hidden group"
           >
-            <Icon name="Sparkles" className="h-4 w-4 mr-2" size={16} />
-            {runningSuggestions ? "Running..." : "Run Suggestions"}
+            <Icon 
+              name="Sparkles" 
+              className={`h-4 w-4 mr-2 ${runningSuggestions ? 'animate-spin' : 'group-hover:scale-110 transition-transform'}`}
+              size={16} 
+            />
+            {runningSuggestions ? (
+              <span className="animate-pulse">Running...</span>
+            ) : (
+              "Run Suggestions"
+            )}
+            {runningSuggestions && (
+              <span className="absolute inset-0 bg-primary/10 animate-pulse" />
+            )}
           </Button>
           <Button
             onClick={() => setShowConfirmDialog(true)}
