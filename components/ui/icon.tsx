@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Info,
   Clock,
+  Menu,
 } from "lucide-react";
 import {
   Envelope1Outlined,
@@ -81,6 +82,7 @@ const iconMap = {
   CheckCircle: "lucide-checkcircle", // Check circle icon - using Lucide
   Info: "lucide-info", // Info icon - using Lucide
   Clock: "lucide-clock", // Clock icon - using Lucide
+  Menu: "lucide-menu", // Hamburger menu icon - using Lucide
 } as const;
 
 export type IconName = keyof typeof iconMap;
@@ -122,6 +124,7 @@ export function Icon({
       "lucide-checkcircle": CheckCircle,
       "lucide-info": Info,
       "lucide-clock": Clock,
+      "lucide-menu": Menu,
     };
     const LucideIcon = lucideIcons[IconComponent];
     if (LucideIcon) {

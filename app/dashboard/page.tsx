@@ -224,7 +224,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
       {/* Always show static header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards - static labels always visible */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Emails"
           value={stats?.totalEmails ? stats.totalEmails.toLocaleString() : null}
@@ -270,7 +270,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Top Senders and Categories - static headers always visible */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
         <SenderList
           senders={stats?.topSenders ? stats.topSenders.slice(0, 10) : null}
           loading={loading}

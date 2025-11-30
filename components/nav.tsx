@@ -110,8 +110,9 @@ export function Nav() {
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
             >
-              <Icon name={mobileMenuOpen ? "X" : "Settings"} size={20} />
+              <Icon name={mobileMenuOpen ? "X" : "Menu"} size={20} />
             </Button>
           </div>
         </div>
