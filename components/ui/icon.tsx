@@ -3,6 +3,13 @@
 import { Lineicons } from "@lineiconshq/react-lineicons";
 import { cn } from "@/lib/utils";
 import {
+  Eye,
+  EyeOff,
+  Edit,
+  Palette,
+  AlertTriangle as LucideAlertTriangle,
+} from "lucide-react";
+import {
   Envelope1Outlined,
   Comment1Outlined,
   ExitOutlined,
@@ -55,6 +62,11 @@ const iconMap = {
   ChevronUp: ChevronUpOutlined,
   CheckSquare: CheckSquare2Outlined, // For select all (checked state)
   Square: Bootstrap5SquareOutlined, // For deselect all (unchecked state)
+  Eye: "lucide-eye", // Show password - using Lucide
+  EyeOff: "lucide-eyeoff", // Hide password - using Lucide
+  Edit: "lucide-edit", // Edit icon - using Lucide
+  Palette: "lucide-palette", // Color palette - using Lucide
+  AlertTriangle: "lucide-alert", // Warning/Alert - using Lucide
 } as const;
 
 export type IconName = keyof typeof iconMap;
@@ -77,6 +89,31 @@ export function Icon({
     console.warn(`Icon "${name}" not found`);
     return null;
   }
+
+  // Handle Lucide icons
+  if (
+    typeof IconComponent === "string" &&
+    IconComponent.startsWith("lucide-")
+  ) {
+    const lucideIcons: Record<string, any> = {
+      "lucide-eye": Eye,
+      "lucide-eyeoff": EyeOff,
+      "lucide-edit": Edit,
+      "lucide-palette": Palette,
+      "lucide-alert": LucideAlertTriangle,
+    };
+    const LucideIcon = lucideIcons[IconComponent];
+    if (LucideIcon) {
+      return (
+        <LucideIcon
+          size={size}
+          color={color}
+          className={cn("inline-block", className)}
+        />
+      );
+    }
+  }
+
   return (
     <Lineicons
       icon={IconComponent}

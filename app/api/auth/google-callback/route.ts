@@ -11,8 +11,24 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
     const state = searchParams.get("state");
+    const error = searchParams.get("error");
+
+    console.log("Google OAuth callback received:", {
+      hasCode: !!code,
+      hasState: !!state,
+      error: error || "none",
+    });
+
+    // Check if Google returned an error
+    if (error) {
+      console.error("Google OAuth error:", error);
+      return NextResponse.redirect(
+        `${process.env.NEXTAUTH_URL}/settings?error=google_oauth_${error}`
+      );
+    }
 
     if (!code || !state) {
+      console.error("Missing code or state in OAuth callback");
       return NextResponse.redirect(
         `${process.env.NEXTAUTH_URL}/settings?error=oauth_failed`
       );
@@ -45,7 +61,19 @@ export async function GET(request: NextRequest) {
 
     // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken(code);
+    
+    // Log token details for debugging
+    console.log("OAuth tokens received:", {
+      hasRefreshToken: !!tokens.refresh_token,
+      hasAccessToken: !!tokens.access_token,
+      scopes: tokens.scope,
+    });
+    
     if (!tokens.refresh_token || !tokens.access_token) {
+      console.error("Missing required tokens:", {
+        hasRefreshToken: !!tokens.refresh_token,
+        hasAccessToken: !!tokens.access_token,
+      });
       return NextResponse.redirect(
         `${process.env.NEXTAUTH_URL}/settings?error=no_tokens`
       );
@@ -73,15 +101,27 @@ export async function GET(request: NextRequest) {
       ? new Date(tokens.expiry_date)
       : null;
 
-    await connectGoogleAccount(
-      stateData.userId,
+    console.log("Attempting to connect Google account:", {
+      userId: stateData.userId,
       email,
-      tokens.refresh_token,
-      tokens.access_token,
-      expiresAt,
-      tokens.scope?.split(" ") || [],
-      false // Don't auto-activate, user can choose
-    );
+      hasTokens: true,
+    });
+
+    try {
+      await connectGoogleAccount(
+        stateData.userId,
+        email,
+        tokens.refresh_token,
+        tokens.access_token,
+        expiresAt,
+        tokens.scope?.split(" ") || [],
+        false // Don't auto-activate, user can choose
+      );
+      console.log("Successfully connected Google account:", email);
+    } catch (connectError) {
+      console.error("Failed to connect Google account:", connectError);
+      throw connectError; // Re-throw to be caught by outer catch
+    }
 
     // Redirect back to settings with success message
     const callbackUrl = stateData.callbackUrl || "/settings";

@@ -2,19 +2,23 @@
 "use client";
 
 import { useSession } from "@/lib/use-session";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AccountInfo } from "@/components/settings/account-info";
 import { AccountList } from "@/components/settings/account-list";
 import { SyncControls } from "@/components/settings/sync-controls";
 import { SenderSelection } from "@/components/settings/sender-selection";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserProfile } from "@/components/settings/user-profile";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { showToast } from "@/components/ui/toast";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [accountInfo, setAccountInfo] = useState<{
     accounts: Array<{
       id: string;
@@ -31,7 +35,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [runningSuggestions, setRunningSuggestions] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{
     status: string;
     processedMessages: number;
@@ -42,6 +45,49 @@ export default function SettingsPage() {
     progress: number;
     hasMore: boolean;
   } | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Handle OAuth callback messages (success or error)
+  useEffect(() => {
+    // Check for success message
+    const connected = searchParams.get("connected");
+    const email = searchParams.get("email");
+    if (connected === "true" && email) {
+      showToast(`Successfully connected ${email}`, "success");
+      // Clean up URL
+      router.replace("/settings");
+    }
+
+    // Check for error messages
+    const error = searchParams.get("error");
+    if (error) {
+      let errorMessage = "Failed to connect Gmail account";
+      
+      // Provide specific error messages
+      if (error === "no_tokens") {
+        errorMessage = "Google didn't provide necessary tokens. Try revoking app access from your Google Account settings and reconnecting.";
+      } else if (error === "oauth_failed") {
+        errorMessage = "OAuth authorization failed. Please try again.";
+      } else if (error === "invalid_state") {
+        errorMessage = "Invalid OAuth state. Please try again.";
+      } else if (error === "session_expired") {
+        errorMessage = "Your session expired. Please log in again.";
+      } else if (error === "no_email") {
+        errorMessage = "Couldn't get email from Google account.";
+      } else if (error === "oauth_callback_failed") {
+        errorMessage = "OAuth callback failed. Check console for details.";
+      } else if (error.startsWith("google_oauth_")) {
+        // Google returned an error
+        const googleError = error.replace("google_oauth_", "");
+        errorMessage = `Google OAuth error: ${googleError}`;
+      }
+      
+      showToast(errorMessage, "error");
+      // Clean up URL
+      router.replace("/settings");
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -114,14 +160,23 @@ export default function SettingsPage() {
               // Poll again in 2 seconds
               pollTimeout = setTimeout(pollSyncProgress, 2000);
             } else if (data.status === "completed") {
-              // Sync completed
+              // Sync completed - wait a bit for animations to finish before showing toast
               setSyncing(false);
-              showToast(
-                `Sync completed! Synced ${data.processedMessages} messages (${data.created} new, ${data.updated} updated).`,
-                "success"
-              );
+              
+              // Give the animated counters time to finish their animation (400ms + 100ms buffer)
+              setTimeout(() => {
+                showToast(
+                  `Sync completed! Synced ${data.processedMessages} messages (${data.created} new, ${data.updated} updated).`,
+                  "success"
+                );
+              }, 500);
+              
               await fetchAccountInfo();
-              setSyncProgress(null);
+              
+              // Clear progress after a short delay to let users see the final numbers
+              setTimeout(() => {
+                setSyncProgress(null);
+              }, 1500);
             } else if (data.status === "failed") {
               // Sync failed
               setSyncing(false);
@@ -194,13 +249,9 @@ export default function SettingsPage() {
 
         // If sync completed immediately (no more messages)
         if (data.message === "Sync completed" && !data.hasMore) {
-          setSyncing(false);
-          showToast(
-            `Sync completed! Synced ${data.synced} messages (${data.created} new, ${data.updated} updated).`,
-            "success"
-          );
-          await fetchAccountInfo();
-          setSyncProgress(null);
+          // Don't show toast here - let the polling mechanism handle it
+          // This ensures toast only appears after all progress updates are complete
+          // The useEffect will poll once more and show the completion toast
         }
         // Otherwise, sync is in progress - useEffect will handle polling
       }
@@ -211,27 +262,43 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleRunSuggestions() {
+  async function handleLogout() {
     try {
-      setRunningSuggestions(true);
-      setError(null);
-      const response = await fetch("/api/agent/suggest-deletes", {
+      await fetch("/api/auth/logout", { method: "POST" });
+      showToast("Logged out successfully", "success");
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      showToast("Failed to logout", "error");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    try {
+      setDeletingAccount(true);
+      const response = await fetch("/api/user/delete-data", {
         method: "POST",
       });
+
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to run suggestions");
+        throw new Error(data.error || "Failed to delete account");
       }
-      const data = await response.json();
-      showToast(
-        `Evaluated ${data.evaluated} emails. Found ${data.candidates} deletion candidates.`,
-        "success"
-      );
-      await fetchAccountInfo();
+
+      showToast("Account deleted successfully", "success");
+      
+      // Logout and redirect
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/register");
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to run suggestions");
+      showToast(
+        err instanceof Error ? err.message : "Failed to delete account",
+        "error"
+      );
     } finally {
-      setRunningSuggestions(false);
+      setDeletingAccount(false);
+      setShowDeleteDialog(false);
     }
   }
 
@@ -293,6 +360,18 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* User Profile Section */}
+      {session?.user && (
+        <UserProfile
+          user={{
+            id: session.user.id,
+            username: session.user.username,
+            email: session.user.email,
+          }}
+          onUpdate={fetchAccountInfo}
+        />
+      )}
+
       {/* Account management */}
       <AccountList />
 
@@ -307,14 +386,68 @@ export default function SettingsPage() {
       {/* Always show SyncControls and SenderSelection */}
       <SyncControls
         onSync={handleSync}
-        onRunSuggestions={handleRunSuggestions}
         syncing={syncing}
-        runningSuggestions={runningSuggestions}
         syncProgress={syncProgress}
       />
       {session?.user?.id && (
         <SenderSelection userId={session.user.id} />
       )}
+
+      {/* Danger Zone */}
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <Icon name="AlertTriangle" className="h-5 w-5" size={20} />
+            Danger Zone
+          </CardTitle>
+          <CardDescription>
+            Irreversible actions that affect your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 rounded-lg border">
+            <div>
+              <h4 className="font-medium">Logout</h4>
+              <p className="text-sm text-muted-foreground">
+                Sign out of your account on this device
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleLogout}>
+              <Icon name="LogOut" className="mr-2" size={16} />
+              Logout
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/50 bg-destructive/5">
+            <div>
+              <h4 className="font-medium text-destructive">Delete Account</h4>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete your account and all associated data
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Icon name="Trash" className="mr-2" size={16} />
+              Delete Account
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Account"
+        description="Are you absolutely sure? This will permanently delete your account, all connected Gmail accounts, synced messages, and all data. This action cannot be undone."
+        confirmText="Delete Everything"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleDeleteAccount}
+        loading={deletingAccount}
+      />
     </div>
   );
 }

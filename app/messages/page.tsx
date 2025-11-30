@@ -124,6 +124,14 @@ export default function MessagesPage() {
         next: { revalidate: 30 },
       });
       
+      // Handle 404 - no Gmail account
+      if (response.status === 404) {
+        setError("NO_ACCOUNT");
+        setMessages([]);
+        cacheRef.current = null;
+        return;
+      }
+      
       if (!response.ok) {
         throw new Error("Failed to fetch messages");
       }
@@ -271,9 +279,39 @@ export default function MessagesPage() {
     }
   }
 
-  // Don't show full skeleton - keep static content visible
-
-  // Show error inline, don't block the whole page
+  // Show welcome message if no Gmail account connected
+  if (error === "NO_ACCOUNT") {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <Icon name="Message" className="h-6 w-6 sm:h-8 sm:w-8" size={32} />
+            Messages
+          </h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Browse and manage your synced emails
+          </p>
+        </div>
+        <Card className="text-center py-12">
+          <CardContent className="space-y-4">
+            <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+              <Icon name="Mail" className="h-8 w-8 text-muted-foreground" size={32} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">No Gmail Account Connected</h3>
+              <p className="text-muted-foreground mb-6">
+                Connect your Gmail account to view and manage your messages
+              </p>
+              <Button onClick={() => router.push("/settings")}>
+                <Icon name="Settings" className="mr-2" size={16} />
+                Go to Settings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

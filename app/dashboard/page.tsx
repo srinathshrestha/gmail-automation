@@ -100,6 +100,14 @@ export default function DashboardPage() {
         next: { revalidate: 30 },
       });
       
+      // Handle 404 - no Gmail account connected
+      if (response.status === 404) {
+        setError("NO_ACCOUNT");
+        setStats(null);
+        cacheRef.current = null;
+        return;
+      }
+      
       if (!response.ok) {
         throw new Error("Failed to fetch stats");
       }
@@ -125,6 +133,80 @@ export default function DashboardPage() {
       }
       fetchInProgressRef.current = false;
     }
+  }
+
+  // Show welcome message if no Gmail account connected
+  if (error === "NO_ACCOUNT") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-2xl w-full">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-primary"
+              >
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+            </div>
+            <div>
+              <CardTitle className="text-2xl mb-2">Welcome to InboxJanitor!</CardTitle>
+              <CardDescription className="text-base">
+                Connect your Gmail account to start managing your inbox with AI-powered automation
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-lg">Get Started:</h3>
+              <ol className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
+                    1
+                  </span>
+                  <span>Connect your Gmail account to sync your emails</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
+                    2
+                  </span>
+                  <span>AI will analyze your inbox and suggest emails to delete</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">
+                    3
+                  </span>
+                  <span>Review suggestions and clean up your inbox in minutes</span>
+                </li>
+              </ol>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <button
+                onClick={() => router.push("/settings")}
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-md font-medium transition-colors"
+              >
+                Connect Gmail Account
+              </button>
+              <button
+                onClick={() => router.push("/privacy")}
+                className="flex-1 border border-border hover:bg-muted px-6 py-3 rounded-md font-medium transition-colors"
+              >
+                Learn About Privacy
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Show error only if we have no cached data

@@ -45,6 +45,7 @@ export const users = pgTable(
     username: text("username").notNull().unique(), // Username for login
     passwordHash: text("passwordHash").notNull(), // Hashed password using bcrypt
     email: text("email"), // Optional email (users may have multiple Gmail accounts)
+    gradient: text("gradient"), // User's selected avatar gradient
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
   },

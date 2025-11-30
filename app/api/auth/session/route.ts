@@ -25,6 +25,7 @@ export async function GET() {
         id: user.id,
         username: user.username,
         email: user.email,
+        gradient: user.gradient,
       },
     });
   } catch (error) {

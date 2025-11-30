@@ -80,9 +80,21 @@ export function Nav() {
             })}
 
             <div className="flex items-center gap-4 ml-4">
-              <span className="text-sm text-muted-foreground hidden lg:inline">
-                {session.user?.username}
-              </span>
+              <div className="hidden lg:flex items-center gap-2">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  style={{
+                    background:
+                      session.user?.gradient ||
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  }}
+                >
+                  {session.user?.username?.substring(0, 2).toUpperCase()}
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {session.user?.username}
+                </span>
+              </div>
               <ThemeToggle />
               <Button variant="outline" size="sm" onClick={async () => await signOut()}>
                 <Icon name="LogOut" className="mr-2" size={16} />

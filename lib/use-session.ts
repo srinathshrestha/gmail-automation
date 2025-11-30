@@ -11,6 +11,7 @@ export interface Session {
     id: string;
     username: string;
     email: string | null;
+    gradient?: string | null;
   };
 }
 
@@ -19,27 +20,43 @@ export function useSession() {
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const router = useRouter();
 
-  useEffect(() => {
-    async function fetchSession() {
-      try {
-        const response = await fetch("/api/auth/session");
-        const data = await response.json();
+  // Fetch session function
+  const fetchSession = async () => {
+    try {
+      const response = await fetch("/api/auth/session", {
+        cache: "no-store", // Always fetch fresh session
+      });
+      const data = await response.json();
 
-        if (data.user) {
-          setSession({ user: data.user });
-          setStatus("authenticated");
-        } else {
-          setSession(null);
-          setStatus("unauthenticated");
-        }
-      } catch (error) {
-        console.error("Error fetching session:", error);
+      if (data.user) {
+        setSession({ user: data.user });
+        setStatus("authenticated");
+      } else {
         setSession(null);
         setStatus("unauthenticated");
       }
+    } catch (error) {
+      console.error("Error fetching session:", error);
+      setSession(null);
+      setStatus("unauthenticated");
     }
+  };
 
+  // Fetch session on mount
+  useEffect(() => {
     fetchSession();
+  }, []);
+
+  // Listen for custom session update events
+  useEffect(() => {
+    const handleSessionUpdate = () => {
+      fetchSession();
+    };
+
+    window.addEventListener("session-updated", handleSessionUpdate);
+    return () => {
+      window.removeEventListener("session-updated", handleSessionUpdate);
+    };
   }, []);
 
   const signOut = async () => {
