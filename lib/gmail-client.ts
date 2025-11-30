@@ -107,28 +107,49 @@ export async function listMessages(
       maxResults,
     });
 
+    // Filter out messages without required fields and map to expected type
+    const validMessages = (response.data.messages || [])
+      .filter(
+        (msg): msg is { id: string; threadId: string } =>
+          typeof msg.id === "string" && typeof msg.threadId === "string"
+      )
+      .map((msg) => ({
+        id: msg.id,
+        threadId: msg.threadId,
+      }));
+
     return {
-      messages: response.data.messages || [],
+      messages: validMessages,
       nextPageToken: response.data.nextPageToken || undefined,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Check for Gmail API not enabled error
-    const errorMessage = error?.message || String(error);
-    if (errorMessage.includes("Gmail API has not been used") || 
-        errorMessage.includes("it is disabled") ||
-        error?.code === 403) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const hasErrorCode = (err: unknown): err is { code?: number } => {
+      return typeof err === "object" && err !== null && "code" in err;
+    };
+    if (
+      errorMessage.includes("Gmail API has not been used") ||
+      errorMessage.includes("it is disabled") ||
+      (hasErrorCode(error) && error.code === 403)
+    ) {
       // Extract project ID from error if available
       const projectIdMatch = errorMessage.match(/project\s+(\d+)/);
       const projectId = projectIdMatch ? projectIdMatch[1] : null;
-      
-      const enableUrl = projectId 
+
+      const enableUrl = projectId
         ? `https://console.developers.google.com/apis/api/gmail.googleapis.com/overview?project=${projectId}`
         : "https://console.developers.google.com/apis/library/gmail.googleapis.com";
-      
-      const enhancedError: any = new Error(
+
+      const enhancedError = new Error(
         `Gmail API is not enabled for your Google Cloud project. ` +
-        `Please enable it in Google Cloud Console: ${enableUrl}`
-      );
+          `Please enable it in Google Cloud Console: ${enableUrl}`
+      ) as Error & {
+        code: number;
+        apiNotEnabled: boolean;
+        enableUrl: string;
+        projectId: string | null;
+      };
       enhancedError.code = 403;
       enhancedError.apiNotEnabled = true;
       enhancedError.enableUrl = enableUrl;

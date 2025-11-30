@@ -90,8 +90,8 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Attach user ID to session
       if (session.user && token.userId) {
-        (session.user as any).id = token.userId as string;
-        (session.user as any).email = token.email as string;
+        session.user.id = token.userId;
+        session.user.email = token.email;
       }
       return session;
     },

@@ -5,8 +5,6 @@ import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16; // 16 bytes for AES
-const SALT_LENGTH = 64; // 64 bytes for GCM auth tag
-const KEY_LENGTH = 32; // 32 bytes for AES-256
 
 /**
  * Get encryption key from environment variable

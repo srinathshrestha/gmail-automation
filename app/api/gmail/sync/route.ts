@@ -70,18 +70,27 @@ export async function POST(_request: NextRequest) {
     try {
       const result = await listMessages(gmail, query, MAX_MESSAGES_PER_SYNC);
       gmailMessages = result.messages;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error listing Gmail messages:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
+      // Type guard for error with apiNotEnabled property
+      const hasApiNotEnabled = (
+        err: unknown
+      ): err is { apiNotEnabled: boolean; enableUrl?: string } => {
+        return (
+          typeof err === "object" && err !== null && "apiNotEnabled" in err
+        );
+      };
+
       // Check for Gmail API not enabled error (specific case)
       if (
-        error?.apiNotEnabled ||
+        (hasApiNotEnabled(error) && error.apiNotEnabled) ||
         errorMessage.includes("Gmail API is not enabled")
       ) {
         const enableUrl =
-          error?.enableUrl ||
+          (hasApiNotEnabled(error) && error.enableUrl) ||
           "https://console.developers.google.com/apis/library/gmail.googleapis.com";
         return NextResponse.json(
           {
@@ -135,7 +144,15 @@ export async function POST(_request: NextRequest) {
       }
 
       // Generic 403 error - likely API not enabled
-      if (error?.code === 403 || error?.response?.status === 403) {
+      const hasErrorCode = (
+        err: unknown
+      ): err is { code?: number; response?: { status?: number } } => {
+        return typeof err === "object" && err !== null;
+      };
+      if (
+        hasErrorCode(error) &&
+        (error.code === 403 || error.response?.status === 403)
+      ) {
         return NextResponse.json(
           {
             error: "Gmail API Access Denied",

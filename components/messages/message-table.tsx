@@ -30,8 +30,8 @@ interface MessageTableProps {
 }
 
 export function MessageTable({ messages, selectedIds, onSelect, onSelectAll }: MessageTableProps) {
-  const allSelected = messages.length > 0 && messages.every((m) => selectedIds.has(m.id));
-  const someSelected = messages.some((m) => selectedIds.has(m.id));
+  const allSelected =
+    messages.length > 0 && messages.every((m) => selectedIds.has(m.id));
 
   return (
     <Table>

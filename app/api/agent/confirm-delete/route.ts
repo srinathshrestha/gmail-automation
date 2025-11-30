@@ -262,13 +262,13 @@ export async function POST(request: NextRequest) {
             }
 
             // Update delete batch status
-            const status =
+            const status: "pending" | "completed" | "failed" =
               errorCount > 0 && deletedCount === 0 ? "failed" : "completed";
             await db
               .update(deleteBatches)
               .set({
                 totalDeleted: deletedCount,
-                status: status as any,
+                status,
                 finishedAt: new Date(),
                 errorMessage: errors.length > 0 ? errors.join("; ") : null,
               })
@@ -436,13 +436,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update delete batch status
-    const status =
+    const status: "pending" | "completed" | "failed" =
       errorCount > 0 && deletedCount === 0 ? "failed" : "completed";
     await db
       .update(deleteBatches)
       .set({
         totalDeleted: deletedCount,
-        status: status as any,
+        status,
         finishedAt: new Date(),
         errorMessage: errors.length > 0 ? errors.join("; ") : null,
       })

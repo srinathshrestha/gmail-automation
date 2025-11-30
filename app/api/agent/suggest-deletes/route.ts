@@ -1,7 +1,7 @@
 // Agent suggest-deletes route
 // Classifies emails and marks deletion candidates
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { db, messages, senderStats } from "@/lib/db";
@@ -22,7 +22,7 @@ const DELETE_SCORE_THRESHOLD = 0.7;
 // Batch size for processing (500 messages at a time)
 const BATCH_SIZE = 500;
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
   try {
     // Authenticate user
     const session = await getServerSession(authOptions);
