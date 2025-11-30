@@ -3,7 +3,7 @@
 
 import { useSession } from "@/lib/use-session";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { AccountInfo } from "@/components/settings/account-info";
 import { AccountList } from "@/components/settings/account-list";
 import { SyncControls } from "@/components/settings/sync-controls";
@@ -15,7 +15,7 @@ import { Icon } from "@/components/ui/icon";
 import { showToast } from "@/components/ui/toast";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -449,6 +449,14 @@ export default function SettingsPage() {
         loading={deletingAccount}
       />
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8">Loading...</div>}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }
 

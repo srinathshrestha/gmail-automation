@@ -8,6 +8,13 @@ import {
   Edit,
   Palette,
   AlertTriangle as LucideAlertTriangle,
+  Download,
+  Plus,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  Info,
+  Clock,
 } from "lucide-react";
 import {
   Envelope1Outlined,
@@ -67,6 +74,13 @@ const iconMap = {
   Edit: "lucide-edit", // Edit icon - using Lucide
   Palette: "lucide-palette", // Color palette - using Lucide
   AlertTriangle: "lucide-alert", // Warning/Alert - using Lucide
+  Download: "lucide-download", // Download icon - using Lucide
+  Plus: "lucide-plus", // Plus icon - using Lucide
+  RefreshCw: "lucide-refreshcw", // Refresh circular icon - using Lucide
+  AlertCircle: "lucide-alertcircle", // Alert circle icon - using Lucide
+  CheckCircle: "lucide-checkcircle", // Check circle icon - using Lucide
+  Info: "lucide-info", // Info icon - using Lucide
+  Clock: "lucide-clock", // Clock icon - using Lucide
 } as const;
 
 export type IconName = keyof typeof iconMap;
@@ -101,6 +115,13 @@ export function Icon({
       "lucide-edit": Edit,
       "lucide-palette": Palette,
       "lucide-alert": LucideAlertTriangle,
+      "lucide-download": Download,
+      "lucide-plus": Plus,
+      "lucide-refreshcw": RefreshCw,
+      "lucide-alertcircle": AlertCircle,
+      "lucide-checkcircle": CheckCircle,
+      "lucide-info": Info,
+      "lucide-clock": Clock,
     };
     const LucideIcon = lucideIcons[IconComponent];
     if (LucideIcon) {
