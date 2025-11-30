@@ -152,7 +152,7 @@ export function AccountList() {
             {accounts.map((account) => (
               <div
                 key={account.id}
-                className={`flex items-center justify-between p-4 rounded-lg border ${
+                className={`flex items-start sm:items-center justify-between p-3 sm:p-4 rounded-lg border gap-3 ${
                   account.isActive
                     ? "border-primary bg-primary/5"
                     : "border-border bg-card"
@@ -167,33 +167,35 @@ export function AccountList() {
                     size={20}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium truncate">{account.emailAddress}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium break-all text-sm sm:text-base">{account.emailAddress}</p>
                       {account.isActive && (
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary text-primary-foreground shrink-0">
                           Active
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Connected {new Date(account.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                   {!account.isActive && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleActivate(account.id)}
                       disabled={activating === account.id}
+                      className="whitespace-nowrap"
                     >
                       {activating === account.id ? (
                         "Activating..."
                       ) : (
                         <>
                           <Icon name="Check" className="mr-1" size={14} />
-                          Set Active
+                          <span className="hidden sm:inline">Set Active</span>
+                          <span className="sm:hidden">Active</span>
                         </>
                       )}
                     </Button>
@@ -205,6 +207,7 @@ export function AccountList() {
                       handleDisconnect(account.id, account.emailAddress)
                     }
                     disabled={disconnecting === account.id}
+                    className="whitespace-nowrap"
                   >
                     {disconnecting === account.id ? (
                       "Disconnecting..."

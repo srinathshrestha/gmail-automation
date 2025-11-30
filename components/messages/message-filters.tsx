@@ -28,7 +28,7 @@ export function MessageFilters({
 }: MessageFiltersProps) {
   return (
     <div className="flex flex-wrap gap-4 items-end">
-      <div className="flex-1 min-w-[200px]">
+      <div className="flex-1 min-w-[200px] space-y-2">
         <Label htmlFor="sender-filter">Sender</Label>
         <Select value={senderFilter} onValueChange={onSenderChange}>
           <SelectTrigger id="sender-filter">
@@ -45,7 +45,7 @@ export function MessageFilters({
         </Select>
       </div>
 
-      <div className="flex-1 min-w-[200px]">
+      <div className="flex-1 min-w-[200px] space-y-2">
         <Label htmlFor="category-filter">Category</Label>
         <Select value={categoryFilter} onValueChange={onCategoryChange}>
           <SelectTrigger id="category-filter">
@@ -62,7 +62,7 @@ export function MessageFilters({
         </Select>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 pb-2">
         <Checkbox
           id="candidates-only"
           checked={showOnlyCandidates}
