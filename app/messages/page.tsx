@@ -59,6 +59,41 @@ export default function MessagesPage() {
   const fetchInProgressRef = useRef(false);
   const CACHE_DURATION = 30 * 1000; // 30 seconds
 
+  // Load cached data from localStorage on mount for instant display
+  useEffect(() => {
+    const cachedMessages = localStorage.getItem("messagesCache");
+    const cachedFilters = localStorage.getItem("messagesFilters");
+    
+    if (cachedMessages) {
+      try {
+        const { data, timestamp, filters } = JSON.parse(cachedMessages);
+        // Check if cached filters match current filters
+        if (
+          filters.sender === senderFilter &&
+          filters.category === categoryFilter &&
+          filters.candidates === showOnlyCandidates
+        ) {
+          setMessages(data);
+          cacheRef.current = { data, timestamp };
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to parse cached messages:", e);
+      }
+    }
+
+    const cachedFilterOptions = localStorage.getItem("messagesFilterOptions");
+    if (cachedFilterOptions) {
+      try {
+        const { senders: cachedSenders, categories: cachedCategories } = JSON.parse(cachedFilterOptions);
+        setSenders(cachedSenders);
+        setCategories(cachedCategories);
+      } catch (e) {
+        console.error("Failed to parse cached filter options:", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -66,8 +101,9 @@ export default function MessagesPage() {
     }
 
     if (status === "authenticated" && session) {
-      fetchMessages();
-      fetchFilterOptions();
+      // Fetch in background even if we have cached data
+      fetchMessages(messages.length > 0); // Silent if we have data
+      fetchFilterOptions(senders.length > 0); // Silent if we have senders
     }
   }, [status, session, router, senderFilter, categoryFilter, showOnlyCandidates]);
 
@@ -96,21 +132,9 @@ export default function MessagesPage() {
     // Prevent concurrent fetches
     if (fetchInProgressRef.current) return;
 
-    // Check cache first (only if filters haven't changed)
-    const now = Date.now();
-    
-    if (
-      !silent &&
-      cacheRef.current &&
-      now - cacheRef.current.timestamp < CACHE_DURATION
-    ) {
-      setMessages(cacheRef.current.data);
-      setLoading(false);
-      return;
-    }
-
     try {
-      if (!silent) {
+      // Only show loading if we don't have any messages yet
+      if (!silent && messages.length === 0) {
         setLoading(true);
       }
       fetchInProgressRef.current = true;
@@ -138,12 +162,24 @@ export default function MessagesPage() {
       
       const data = await response.json();
       const messagesData = data.messages || [];
+      const now = Date.now();
       
       // Update cache
       cacheRef.current = {
         data: messagesData,
         timestamp: now,
       };
+
+      // Save to localStorage for instant load next time
+      localStorage.setItem("messagesCache", JSON.stringify({
+        data: messagesData,
+        timestamp: now,
+        filters: {
+          sender: senderFilter,
+          category: categoryFilter,
+          candidates: showOnlyCandidates,
+        }
+      }));
       
       setMessages(messagesData);
       setError(null);
@@ -248,13 +284,19 @@ export default function MessagesPage() {
     }
   }
 
-  async function fetchFilterOptions() {
+  async function fetchFilterOptions(silent = false) {
     try {
       const response = await fetch("/api/messages/filters");
       if (response.ok) {
         const data = await response.json();
         setSenders(data.senders || []);
         setCategories(data.categories || []);
+
+        // Save to localStorage
+        localStorage.setItem("messagesFilterOptions", JSON.stringify({
+          senders: data.senders || [],
+          categories: data.categories || [],
+        }));
       }
     } catch (err) {
       console.error("Failed to fetch filter options:", err);

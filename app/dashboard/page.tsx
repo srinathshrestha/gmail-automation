@@ -41,6 +41,21 @@ export default function DashboardPage() {
   const cacheRef = useRef<{ data: DashboardStats | null; timestamp: number } | null>(null);
   const fetchInProgressRef = useRef(false);
 
+  // Load cached data from localStorage on mount for instant display
+  useEffect(() => {
+    const cachedStats = localStorage.getItem("dashboardStats");
+    if (cachedStats) {
+      try {
+        const { data, timestamp } = JSON.parse(cachedStats);
+        setStats(data);
+        cacheRef.current = { data, timestamp };
+        setLoading(false);
+      } catch (e) {
+        console.error("Failed to parse cached stats:", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -48,7 +63,8 @@ export default function DashboardPage() {
     }
 
     if (status === "authenticated" && session) {
-      fetchStats();
+      // Fetch in background even if we have cached data
+      fetchStats(stats !== null); // Silent if we have data
     }
   }, [status, session, router]);
 
@@ -76,21 +92,10 @@ export default function DashboardPage() {
   async function fetchStats(silent = false) {
     // Prevent concurrent fetches
     if (fetchInProgressRef.current) return;
-    
-    // Check cache first
-    const now = Date.now();
-    if (
-      !silent &&
-      cacheRef.current &&
-      now - cacheRef.current.timestamp < CACHE_DURATION
-    ) {
-      setStats(cacheRef.current.data);
-      setLoading(false);
-      return;
-    }
 
     try {
-      if (!silent) {
+      // Only show loading if we don't have stats yet
+      if (!silent && stats === null) {
         setLoading(true);
       }
       fetchInProgressRef.current = true;
@@ -113,12 +118,19 @@ export default function DashboardPage() {
       }
       
       const data = await response.json();
+      const now = Date.now();
       
       // Update cache
       cacheRef.current = {
         data,
         timestamp: now,
       };
+
+      // Save to localStorage for instant load next time
+      localStorage.setItem("dashboardStats", JSON.stringify({
+        data,
+        timestamp: now,
+      }));
       
       setStats(data);
       setError(null);
