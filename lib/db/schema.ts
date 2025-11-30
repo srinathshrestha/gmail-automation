@@ -29,6 +29,14 @@ export const deleteDecisionEnum = pgEnum("deleteDecision", [
   "error",
 ]);
 
+export const syncStatusEnum = pgEnum("syncStatus", [
+  "pending",
+  "in_progress",
+  "completed",
+  "failed",
+  "timeout",
+]);
+
 // User table
 export const users = pgTable(
   "User",
@@ -189,12 +197,43 @@ export const deleteBatchItems = pgTable(
   })
 );
 
+// SyncProgress table - tracks Gmail sync progress to handle timeouts
+export const syncProgress = pgTable(
+  "SyncProgress",
+  {
+    id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    googleAccountId: uuid("googleAccountId")
+      .notNull()
+      .references(() => googleAccounts.id, { onDelete: "cascade" }),
+    status: syncStatusEnum("status").notNull().default("pending"),
+    totalMessages: integer("totalMessages").notNull().default(0), // Total messages to sync
+    processedMessages: integer("processedMessages").notNull().default(0), // Messages processed so far
+    created: integer("created").notNull().default(0), // New messages created
+    updated: integer("updated").notNull().default(0), // Existing messages updated
+    errors: integer("errors").notNull().default(0), // Errors encountered
+    nextPageToken: text("nextPageToken"), // Gmail API pagination token to resume from
+    errorMessage: text("errorMessage"), // Error message if sync failed
+    startedAt: timestamp("startedAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+    completedAt: timestamp("completedAt"), // When sync completed or failed
+  },
+  (table) => ({
+    userIdIdx: index("SyncProgress_userId_idx").on(table.userId),
+    googleAccountIdIdx: index("SyncProgress_googleAccountId_idx").on(table.googleAccountId),
+    statusIdx: index("SyncProgress_status_idx").on(table.status),
+  })
+);
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   googleAccounts: many(googleAccounts),
   messages: many(messages),
   senderStats: many(senderStats),
   deleteBatches: many(deleteBatches),
+  syncProgress: many(syncProgress),
 }));
 
 export const googleAccountsRelations = relations(googleAccounts, ({ one, many }) => ({
@@ -205,6 +244,7 @@ export const googleAccountsRelations = relations(googleAccounts, ({ one, many })
   messages: many(messages),
   senderStats: many(senderStats),
   deleteBatches: many(deleteBatches),
+  syncProgress: many(syncProgress),
 }));
 
 export const messagesRelations = relations(messages, ({ one, many }) => ({
@@ -266,4 +306,6 @@ export type DeleteBatch = typeof deleteBatches.$inferSelect;
 export type NewDeleteBatch = typeof deleteBatches.$inferInsert;
 export type DeleteBatchItem = typeof deleteBatchItems.$inferSelect;
 export type NewDeleteBatchItem = typeof deleteBatchItems.$inferInsert;
+export type SyncProgress = typeof syncProgress.$inferSelect;
+export type NewSyncProgress = typeof syncProgress.$inferInsert;
 

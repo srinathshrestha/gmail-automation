@@ -1,6 +1,8 @@
 // Top senders list component
+// Always shows static headers, only skeletons the data rows
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Sender {
   sender: string;
@@ -11,17 +13,20 @@ interface Sender {
 }
 
 interface SenderListProps {
-  senders: Sender[];
+  senders: Sender[] | null;
+  loading?: boolean;
 }
 
-export function SenderList({ senders }: SenderListProps) {
+export function SenderList({ senders, loading }: SenderListProps) {
   return (
     <Card>
       <CardHeader>
+        {/* Always show static title */}
         <CardTitle>Top Senders</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
+          {/* Always show static table headers */}
           <TableHeader>
             <TableRow>
               <TableHead>Sender</TableHead>
@@ -31,7 +36,25 @@ export function SenderList({ senders }: SenderListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {senders.length === 0 ? (
+            {loading || senders === null ? (
+              // Show skeleton rows for data only
+              [...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-48" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : senders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center text-muted-foreground">
                   No senders found

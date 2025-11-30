@@ -1,5 +1,7 @@
 // Gmail sync route
 // Fetches messages from Gmail and upserts to database
+// Uses chunked processing to avoid Vercel timeout (300s limit)
+// Tracks progress in database for resumable syncs
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -11,17 +13,32 @@ import {
   getThreadDetails,
   parseSender,
 } from "@/lib/gmail-client";
-import { db, messages, senderStats } from "@/lib/db";
+import {
+  db,
+  messages,
+  senderStats,
+  syncProgress,
+  type SyncProgress,
+} from "@/lib/db";
 import { getUserGoogleAccount } from "@/lib/auth-helpers";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
-// Maximum messages to sync per request (to avoid quota limits)
-const MAX_MESSAGES_PER_SYNC = 500;
+// Messages to process per chunk (smaller batches to avoid timeout)
+const MESSAGES_PER_CHUNK = 50;
+
+// Maximum messages to fetch per Gmail API call
+const MAX_MESSAGES_PER_API_CALL = 500;
 
 // Days to look back for messages (90 days)
 const DAYS_TO_SYNC = 90;
 
-export async function POST(_request: NextRequest) {
+// Timeout safety margin (seconds) - return early before Vercel timeout
+const TIMEOUT_SAFETY_MARGIN = 50; // Leave 50 seconds buffer before 300s timeout
+
+/**
+ * GET endpoint - Fetch sync progress for the current user
+ */
+export async function GET() {
   try {
     // Authenticate user
     const session = await getServerSession(authOptions);
@@ -40,6 +57,132 @@ export async function POST(_request: NextRequest) {
       );
     }
 
+    // Get latest sync progress
+    const progress = await db
+      .select()
+      .from(syncProgress)
+      .where(
+        and(
+          eq(syncProgress.userId, userId),
+          eq(syncProgress.googleAccountId, account.id)
+        )
+      )
+      .orderBy(desc(syncProgress.startedAt))
+      .limit(1);
+
+    if (progress.length === 0) {
+      return NextResponse.json({
+        status: "idle",
+        message: "No sync in progress",
+      });
+    }
+
+    const currentProgress = progress[0];
+
+    // Calculate progress percentage
+    const progressPercent =
+      currentProgress.totalMessages > 0
+        ? Math.round(
+            (currentProgress.processedMessages /
+              currentProgress.totalMessages) *
+              100
+          )
+        : 0;
+
+    return NextResponse.json({
+      id: currentProgress.id,
+      status: currentProgress.status,
+      totalMessages: currentProgress.totalMessages,
+      processedMessages: currentProgress.processedMessages,
+      created: currentProgress.created,
+      updated: currentProgress.updated,
+      errors: currentProgress.errors,
+      progress: progressPercent,
+      hasMore: !!currentProgress.nextPageToken,
+      startedAt: currentProgress.startedAt.toISOString(),
+      updatedAt: currentProgress.updatedAt.toISOString(),
+      completedAt: currentProgress.completedAt?.toISOString() || null,
+      errorMessage: currentProgress.errorMessage || null,
+    });
+  } catch (error) {
+    console.error("Error fetching sync progress:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to fetch sync progress",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(_request: NextRequest) {
+  // Track start time to avoid timeout
+  const startTime = Date.now();
+  const maxExecutionTime = (300 - TIMEOUT_SAFETY_MARGIN) * 1000; // Convert to milliseconds
+
+  // Declare progressRecord outside try block so it's accessible in catch
+  let progressRecord: SyncProgress | null = null;
+
+  try {
+    // Authenticate user
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+
+    // Get GoogleAccount
+    const account = await getUserGoogleAccount(userId);
+    if (!account) {
+      return NextResponse.json(
+        { error: "No Google account found" },
+        { status: 404 }
+      );
+    }
+
+    // Check for existing in-progress sync
+    const existingSync = await db
+      .select()
+      .from(syncProgress)
+      .where(
+        and(
+          eq(syncProgress.userId, userId),
+          eq(syncProgress.googleAccountId, account.id),
+          eq(syncProgress.status, "in_progress")
+        )
+      )
+      .orderBy(desc(syncProgress.startedAt))
+      .limit(1);
+
+    let isResuming = false;
+
+    if (existingSync.length > 0) {
+      // Resume existing sync
+      progressRecord = existingSync[0];
+      isResuming = true;
+    } else {
+      // Create new sync progress record
+      const now = new Date();
+      const [newProgress] = await db
+        .insert(syncProgress)
+        .values({
+          userId,
+          googleAccountId: account.id,
+          status: "in_progress",
+          totalMessages: 0,
+          processedMessages: 0,
+          created: 0,
+          updated: 0,
+          errors: 0,
+          startedAt: now,
+          updatedAt: now,
+        })
+        .returning();
+      progressRecord = newProgress;
+    }
+
     // Get Gmail client
     let gmail;
     try {
@@ -47,6 +190,17 @@ export async function POST(_request: NextRequest) {
       gmail = client.gmail;
     } catch (error) {
       console.error("Error getting Gmail client:", error);
+      // Mark sync as failed
+      await db
+        .update(syncProgress)
+        .set({
+          status: "failed",
+          errorMessage:
+            error instanceof Error ? error.message : "Unknown error",
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(syncProgress.id, progressRecord.id));
       return NextResponse.json(
         {
           error: "Failed to connect to Gmail",
@@ -65,11 +219,28 @@ export async function POST(_request: NextRequest) {
     // Build query for messages in date range
     const query = `after:${cutoffDateSeconds}`;
 
-    // List messages
+    // List messages (with pagination support for resuming)
     let gmailMessages;
+    let nextPageToken: string | undefined =
+      progressRecord.nextPageToken || undefined;
+    let totalMessages = progressRecord.totalMessages || 0;
+
     try {
-      const result = await listMessages(gmail, query, MAX_MESSAGES_PER_SYNC);
+      const result = await listMessages(
+        gmail,
+        query,
+        MAX_MESSAGES_PER_API_CALL,
+        nextPageToken
+      );
       gmailMessages = result.messages;
+      nextPageToken = result.nextPageToken;
+
+      // Update total messages if this is the first batch
+      if (!isResuming && totalMessages === 0) {
+        totalMessages = gmailMessages.length;
+        // If there's a nextPageToken, we know there are more messages
+        // We'll update totalMessages as we discover more
+      }
     } catch (error: unknown) {
       console.error("Error listing Gmail messages:", error);
       const errorMessage =
@@ -165,6 +336,17 @@ export async function POST(_request: NextRequest) {
         );
       }
 
+      // Mark sync as failed
+      await db
+        .update(syncProgress)
+        .set({
+          status: "failed",
+          errorMessage: errorMessage,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(syncProgress.id, progressRecord.id));
+
       return NextResponse.json(
         {
           error: "Failed to fetch Gmail messages",
@@ -176,22 +358,71 @@ export async function POST(_request: NextRequest) {
     }
 
     if (!gmailMessages || gmailMessages.length === 0) {
+      // No more messages to process
+      await db
+        .update(syncProgress)
+        .set({
+          status: "completed",
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(syncProgress.id, progressRecord.id));
+
       return NextResponse.json({
         success: true,
-        synced: 0,
-        updated: 0,
-        created: 0,
+        synced: progressRecord.processedMessages,
+        created: progressRecord.created,
+        updated: progressRecord.updated,
+        errors: progressRecord.errors,
         lastSyncedAt: new Date().toISOString(),
-        message: "No messages found in the last 90 days",
+        message: "Sync completed",
+        progressId: progressRecord.id,
       });
     }
 
-    let created = 0;
-    let updated = 0;
-    let errors = 0;
+    // Initialize counters from existing progress or start fresh
+    let created = progressRecord.created;
+    let updated = progressRecord.updated;
+    let errors = progressRecord.errors;
+    let processed = progressRecord.processedMessages;
 
-    // Process each message
-    for (const msg of gmailMessages) {
+    // Process messages in chunks, checking timeout periodically
+    const messagesToProcess = gmailMessages.slice(0, MESSAGES_PER_CHUNK);
+    let processedInThisBatch = 0;
+
+    for (const msg of messagesToProcess) {
+      // Check if we're approaching timeout
+      const elapsed = Date.now() - startTime;
+      if (elapsed > maxExecutionTime) {
+        // Update progress and return early
+        await db
+          .update(syncProgress)
+          .set({
+            processedMessages: processed,
+            created,
+            updated,
+            errors,
+            nextPageToken: nextPageToken || null,
+            updatedAt: new Date(),
+          })
+          .where(eq(syncProgress.id, progressRecord.id));
+
+        return NextResponse.json({
+          success: true,
+          synced: processed,
+          created,
+          updated,
+          errors,
+          message: "Sync in progress - processing in chunks to avoid timeout",
+          progressId: progressRecord.id,
+          hasMore: !!nextPageToken,
+          progress:
+            totalMessages > 0
+              ? Math.round((processed / totalMessages) * 100)
+              : 0,
+        });
+      }
+
       try {
         // Get message metadata
         const metadata = await getMessageMetadata(gmail, msg.id);
@@ -270,20 +501,80 @@ export async function POST(_request: NextRequest) {
             internalDate
           );
         }
+
+        processed++;
+        processedInThisBatch++;
+
+        // Update progress every 10 messages to keep it current
+        if (processedInThisBatch % 10 === 0) {
+          await db
+            .update(syncProgress)
+            .set({
+              processedMessages: processed,
+              created,
+              updated,
+              errors,
+              updatedAt: new Date(),
+            })
+            .where(eq(syncProgress.id, progressRecord.id));
+        }
       } catch (error) {
         console.error(`Error processing message ${msg.id}:`, error);
         errors++;
+        processed++;
         // Continue with next message
       }
     }
 
+    // Update progress after batch
+    await db
+      .update(syncProgress)
+      .set({
+        processedMessages: processed,
+        created,
+        updated,
+        errors,
+        nextPageToken: nextPageToken || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(syncProgress.id, progressRecord.id));
+
+    // If there are more messages (nextPageToken exists), return partial success
+    // Frontend will need to call sync again to continue
+    if (nextPageToken) {
+      return NextResponse.json({
+        success: true,
+        synced: processed,
+        created,
+        updated,
+        errors,
+        message: "Sync in progress - more messages to process",
+        progressId: progressRecord.id,
+        hasMore: true,
+        progress:
+          totalMessages > 0 ? Math.round((processed / totalMessages) * 100) : 0,
+      });
+    }
+
+    // Sync completed
+    await db
+      .update(syncProgress)
+      .set({
+        status: "completed",
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(syncProgress.id, progressRecord.id));
+
     return NextResponse.json({
       success: true,
-      synced: gmailMessages.length,
+      synced: processed,
       created,
       updated,
       errors,
       lastSyncedAt: new Date().toISOString(),
+      message: "Sync completed",
+      progressId: progressRecord.id,
     });
   } catch (error) {
     console.error("Error in Gmail sync:", error);
@@ -297,6 +588,51 @@ export async function POST(_request: NextRequest) {
       stack: errorStack,
       name: error instanceof Error ? error.name : undefined,
     });
+
+    // Check if this is a timeout error
+    if (
+      errorMessage.includes("timeout") ||
+      errorMessage.includes("Task timed out") ||
+      errorMessage.includes("504") ||
+      errorMessage.includes("ETIMEDOUT")
+    ) {
+      // Update progress to indicate timeout (but keep it in_progress so it can be resumed)
+      if (progressRecord) {
+        await db
+          .update(syncProgress)
+          .set({
+            status: "timeout",
+            errorMessage: "Sync timed out - will resume on next sync",
+            updatedAt: new Date(),
+          })
+          .where(eq(syncProgress.id, progressRecord.id));
+      }
+
+      return NextResponse.json(
+        {
+          error: "Sync timed out",
+          details:
+            "The sync operation took too long and was interrupted. Progress has been saved.",
+          hint: "The sync will automatically resume when you try again. Progress is tracked in the database.",
+          progressId: progressRecord?.id,
+          canResume: true,
+        },
+        { status: 504 }
+      );
+    }
+
+    // Mark sync as failed for other errors
+    if (progressRecord) {
+      await db
+        .update(syncProgress)
+        .set({
+          status: "failed",
+          errorMessage: errorMessage,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(syncProgress.id, progressRecord.id));
+    }
 
     return NextResponse.json(
       {

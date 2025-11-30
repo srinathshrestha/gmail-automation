@@ -8,6 +8,10 @@ import { ToastContainer } from "@/components/ui/toast";
 export const metadata: Metadata = {
   title: "InboxJanitor - Gmail Automation",
   description: "AI-powered Gmail inbox management",
+  icons: {
+    icon: "/logo-icon.svg",
+    apple: "/logo-icon.svg",
+  },
 };
 
 export default function RootLayout({

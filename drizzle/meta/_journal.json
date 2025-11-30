@@ -15,6 +15,13 @@
       "when": 1764517009015,
       "tag": "0001_modern_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764524169559,
+      "tag": "0002_magical_liz_osborn",
+      "breakpoints": true
     }
   ]
 }

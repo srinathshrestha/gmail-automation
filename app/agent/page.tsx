@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
-import { Skeleton } from "@/components/ui/skeleton";
 import { showToast } from "@/components/ui/toast";
 import { DeletionProgress } from "@/components/ui/deletion-progress";
 
@@ -268,38 +267,11 @@ export default function AgentPage() {
   const allSelected =
     candidates.length > 0 && selectedIds.size === candidates.length;
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <Skeleton className="h-9 w-64 mb-2" />
-            <Skeleton className="h-5 w-80" />
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-        </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Don't show full skeleton - keep static content visible
 
   return (
     <div className="space-y-6">
+      {/* Always show static headers */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
@@ -354,7 +326,10 @@ export default function AgentPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle>Deletion Candidates ({candidates.length})</CardTitle>
+              {/* Always show static title and description */}
+              <CardTitle>
+                Deletion Candidates {loading ? "" : `(${candidates.length})`}
+              </CardTitle>
               <CardDescription>
                 These emails have been identified as safe to delete. Review and
                 select which ones to remove.
@@ -387,9 +362,10 @@ export default function AgentPage() {
         </CardHeader>
         <CardContent>
           <CandidateList
-            candidates={candidates}
+            candidates={loading ? null : candidates}
             selectedIds={selectedIds}
             onSelect={handleSelect}
+            loading={loading}
           />
         </CardContent>
       </Card>

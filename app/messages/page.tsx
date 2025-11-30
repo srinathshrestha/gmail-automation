@@ -3,7 +3,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MessageTable } from "@/components/messages/message-table";
 import { MessageFilters } from "@/components/messages/message-filters";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,11 @@ export default function MessagesPage() {
   const [senders, setSenders] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
+  // Cache management
+  const cacheRef = useRef<{ data: Message[]; timestamp: number } | null>(null);
+  const fetchInProgressRef = useRef(false);
+  const CACHE_DURATION = 30 * 1000; // 30 seconds
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -67,24 +72,84 @@ export default function MessagesPage() {
     }
   }, [status, session, router, senderFilter, categoryFilter, showOnlyCandidates]);
 
-  async function fetchMessages() {
+  // Handle visibility change (tab switching) - prevent unnecessary reloads
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && status === "authenticated") {
+        const now = Date.now();
+        // Only refetch if cache is stale
+        if (
+          !cacheRef.current ||
+          now - cacheRef.current.timestamp > CACHE_DURATION
+        ) {
+          fetchMessages(true); // Silent refresh
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [status, senderFilter, categoryFilter, showOnlyCandidates]);
+
+  async function fetchMessages(silent = false) {
+    // Prevent concurrent fetches
+    if (fetchInProgressRef.current) return;
+
+    // Check cache first (only if filters haven't changed)
+    const now = Date.now();
+    const cacheKey = `${senderFilter}-${categoryFilter}-${showOnlyCandidates}`;
+    
+    if (
+      !silent &&
+      cacheRef.current &&
+      now - cacheRef.current.timestamp < CACHE_DURATION
+    ) {
+      setMessages(cacheRef.current.data);
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
+      fetchInProgressRef.current = true;
+
       const params = new URLSearchParams();
       if (senderFilter !== "all") params.append("sender", senderFilter);
       if (categoryFilter !== "all") params.append("category", categoryFilter);
       if (showOnlyCandidates) params.append("candidatesOnly", "true");
 
-      const response = await fetch(`/api/messages?${params.toString()}`);
+      const response = await fetch(`/api/messages?${params.toString()}`, {
+        next: { revalidate: 30 },
+      });
+      
       if (!response.ok) {
         throw new Error("Failed to fetch messages");
       }
+      
       const data = await response.json();
-      setMessages(data.messages || []);
+      const messagesData = data.messages || [];
+      
+      // Update cache
+      cacheRef.current = {
+        data: messagesData,
+        timestamp: now,
+      };
+      
+      setMessages(messagesData);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load messages");
+      if (!silent) {
+        setError(err instanceof Error ? err.message : "Failed to load messages");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
+      fetchInProgressRef.current = false;
     }
   }
 
@@ -201,49 +266,16 @@ export default function MessagesPage() {
   }
 
   function handleSelectAll(selected: boolean) {
-    if (selected) {
+    if (selected && messages) {
       setSelectedIds(new Set(messages.map((m) => m.id)));
     } else {
       setSelectedIds(new Set());
     }
   }
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-9 w-48 mb-2" />
-          <Skeleton className="h-5 w-64" />
-        </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-4 w-48" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Don't show full skeleton - keep static content visible
 
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Error</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Show error inline, don't block the whole page
 
   return (
     <div className="space-y-6">
@@ -300,7 +332,7 @@ export default function MessagesPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>
-              Messages ({messages.length})
+              Messages {loading ? "" : `(${messages.length})`}
               {selectedIds.size > 0 && ` - ${selectedIds.size} selected`}
             </CardTitle>
             {selectedIds.size > 0 && (
@@ -317,10 +349,11 @@ export default function MessagesPage() {
         </CardHeader>
         <CardContent>
           <MessageTable
-            messages={messages}
+            messages={loading ? null : messages}
             selectedIds={selectedIds}
             onSelect={handleSelect}
             onSelectAll={handleSelectAll}
+            loading={loading}
           />
         </CardContent>
       </Card>

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Icon } from "@/components/ui/icon";
+import { Logo } from "@/components/logo";
 import { useState } from "react";
 
 export function Nav() {
@@ -23,8 +24,8 @@ export function Nav() {
       <nav className="border-b bg-background sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Icon name="Mail" className="h-5 w-5" size={20} />
-            <span className="hidden sm:inline">InboxJanitor</span>
+            <Logo size={32} iconOnly className="h-6 w-6 sm:h-7 sm:w-7" />
+            <span className="hidden sm:inline text-lg">InboxJanitor</span>
             <span className="sm:hidden">IJ</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -53,8 +54,8 @@ export function Nav() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <Icon name="Mail" className="h-5 w-5" size={20} />
-            <span className="hidden sm:inline">InboxJanitor</span>
+            <Logo size={32} iconOnly className="h-6 w-6 sm:h-7 sm:w-7" />
+            <span className="hidden sm:inline text-lg">InboxJanitor</span>
             <span className="sm:hidden">IJ</span>
           </Link>
 

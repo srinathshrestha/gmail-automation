@@ -94,17 +94,20 @@ export async function getGmailClient(userId: string): Promise<{
 /**
  * List messages from Gmail
  * Returns message IDs with pagination support
+ * @param pageToken - Optional pagination token to resume from a specific page
  */
 export async function listMessages(
   gmail: ReturnType<typeof google.gmail>,
   query?: string,
-  maxResults: number = 500
+  maxResults: number = 500,
+  pageToken?: string
 ): Promise<{ messages: Array<{ id: string; threadId: string }>; nextPageToken?: string }> {
   try {
     const response = await gmail.users.messages.list({
       userId: "me",
       q: query,
       maxResults,
+      pageToken: pageToken, // Support pagination token
     });
 
     // Filter out messages without required fields and map to expected type

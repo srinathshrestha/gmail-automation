@@ -24,6 +24,16 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [runningSuggestions, setRunningSuggestions] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{
+    status: string;
+    processedMessages: number;
+    totalMessages: number;
+    created: number;
+    updated: number;
+    errors: number;
+    progress: number;
+    hasMore: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -52,13 +62,100 @@ export default function SettingsPage() {
     }
   }
 
+  // Poll for sync progress when syncing
+  useEffect(() => {
+    if (!syncing) return;
+
+    let pollTimeout: NodeJS.Timeout;
+    let isCancelled = false;
+
+    async function pollSyncProgress() {
+      if (isCancelled) return;
+
+      try {
+        const response = await fetch("/api/gmail/sync");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status && data.status !== "idle") {
+            setSyncProgress({
+              status: data.status,
+              processedMessages: data.processedMessages || 0,
+              totalMessages: data.totalMessages || 0,
+              created: data.created || 0,
+              updated: data.updated || 0,
+              errors: data.errors || 0,
+              progress: data.progress || 0,
+              hasMore: data.hasMore || false,
+            });
+
+            // If sync is in progress or timed out, continue polling and resume if needed
+            if (data.status === "in_progress" || data.status === "timeout") {
+              // Continue syncing if there's more to process
+              if (data.hasMore || data.status === "timeout") {
+                // Automatically resume sync
+                setTimeout(async () => {
+                  if (!isCancelled) {
+                    try {
+                      await fetch("/api/gmail/sync", { method: "POST" });
+                    } catch (err) {
+                      console.error("Error resuming sync:", err);
+                    }
+                  }
+                }, 1000);
+              }
+              // Poll again in 2 seconds
+              pollTimeout = setTimeout(pollSyncProgress, 2000);
+            } else if (data.status === "completed") {
+              // Sync completed
+              setSyncing(false);
+              showToast(
+                `Sync completed! Synced ${data.processedMessages} messages (${data.created} new, ${data.updated} updated).`,
+                "success"
+              );
+              await fetchAccountInfo();
+              setSyncProgress(null);
+            } else if (data.status === "failed") {
+              // Sync failed
+              setSyncing(false);
+              setError(data.errorMessage || "Sync failed");
+              setSyncProgress(null);
+            }
+          } else {
+            // No active sync
+            setSyncProgress(null);
+          }
+        }
+      } catch (err) {
+        console.error("Error polling sync progress:", err);
+        // Continue polling even on error (might be temporary)
+        if (syncing && !isCancelled) {
+          pollTimeout = setTimeout(pollSyncProgress, 2000);
+        }
+      }
+    }
+
+    // Start polling
+    pollTimeout = setTimeout(pollSyncProgress, 2000);
+
+    // Cleanup function
+    return () => {
+      isCancelled = true;
+      if (pollTimeout) {
+        clearTimeout(pollTimeout);
+      }
+    };
+  }, [syncing]);
+
   async function handleSync() {
     try {
       setSyncing(true);
       setError(null);
+      setSyncProgress(null);
+
       const response = await fetch("/api/gmail/sync", {
         method: "POST",
       });
+
       if (!response.ok) {
         const data = await response.json();
         // Build detailed error message
@@ -75,18 +172,34 @@ export default function SettingsPage() {
         if (data.instructions && Array.isArray(data.instructions)) {
           errorMsg += `\n\n${data.instructions.join("\n")}`;
         }
-        throw new Error(errorMsg);
+
+        // Check if it's a timeout error that can be resumed
+        if (data.canResume) {
+          errorMsg += "\n\nThe sync will automatically resume. Progress is being tracked.";
+          // Keep syncing=true so useEffect continues polling
+        } else {
+          setSyncing(false);
+          throw new Error(errorMsg);
+        }
+      } else {
+        const data = await response.json();
+
+        // If sync completed immediately (no more messages)
+        if (data.message === "Sync completed" && !data.hasMore) {
+          setSyncing(false);
+          showToast(
+            `Sync completed! Synced ${data.synced} messages (${data.created} new, ${data.updated} updated).`,
+            "success"
+          );
+          await fetchAccountInfo();
+          setSyncProgress(null);
+        }
+        // Otherwise, sync is in progress - useEffect will handle polling
       }
-      const data = await response.json();
-      showToast(
-        `Sync completed! Synced ${data.synced} messages (${data.created} new, ${data.updated} updated).`,
-        "success"
-      );
-      await fetchAccountInfo();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sync");
-    } finally {
       setSyncing(false);
+      setError(err instanceof Error ? err.message : "Failed to sync");
+      setSyncProgress(null);
     }
   }
 
@@ -114,28 +227,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-9 w-48 mb-2" />
-          <Skeleton className="h-5 w-64" />
-        </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-56" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Don't show full skeleton - keep static content visible
 
   if (error && !accountInfo) {
     return (
@@ -152,6 +244,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Always show static headers */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
           <Icon name="Settings" className="h-6 w-6 sm:h-8 sm:w-8" size={32} />
@@ -192,23 +285,24 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {accountInfo && (
-        <>
-          <AccountInfo
-            email={accountInfo.email}
-            lastSyncedAt={accountInfo.lastSyncedAt}
-            lastClassificationAt={accountInfo.lastClassificationAt}
-          />
-          <SyncControls
-            onSync={handleSync}
-            onRunSuggestions={handleRunSuggestions}
-            syncing={syncing}
-            runningSuggestions={runningSuggestions}
-          />
-          {session?.user?.id && (
-            <SenderSelection userId={session.user.id} />
-          )}
-        </>
+      {/* Always show AccountInfo card with static headers, only skeleton the data */}
+      <AccountInfo
+        email={accountInfo?.email || null}
+        lastSyncedAt={accountInfo?.lastSyncedAt || null}
+        lastClassificationAt={accountInfo?.lastClassificationAt || null}
+        loading={loading}
+      />
+      
+      {/* Always show SyncControls and SenderSelection */}
+      <SyncControls
+        onSync={handleSync}
+        onRunSuggestions={handleRunSuggestions}
+        syncing={syncing}
+        runningSuggestions={runningSuggestions}
+        syncProgress={syncProgress}
+      />
+      {session?.user?.id && (
+        <SenderSelection userId={session.user.id} />
       )}
     </div>
   );
