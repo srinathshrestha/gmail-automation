@@ -62,6 +62,8 @@ export default function AgentPage() {
     const savedCandidates = localStorage.getItem("agentCandidates");
     const savedSelectedIds = localStorage.getItem("agentSelectedIds");
     const savedRunningStatus = localStorage.getItem("agentRunning");
+    const savedDeletionProgress = localStorage.getItem("agentDeletionProgress");
+    const savedDeletingStatus = localStorage.getItem("agentDeleting");
 
     if (savedCandidates) {
       try {
@@ -83,6 +85,19 @@ export default function AgentPage() {
 
     if (savedRunningStatus === "true") {
       setRunningSuggestions(true);
+    }
+
+    if (savedDeletingStatus === "true") {
+      setDeleting(true);
+    }
+
+    if (savedDeletionProgress) {
+      try {
+        const parsedProgress = JSON.parse(savedDeletionProgress);
+        setDeletionProgress(parsedProgress);
+      } catch (e) {
+        console.error("Failed to parse saved deletion progress:", e);
+      }
     }
   }, []);
 
@@ -121,6 +136,24 @@ export default function AgentPage() {
       localStorage.removeItem("agentSelectedIds");
     }
   }, [selectedIds]);
+
+  // Save deletion progress to localStorage whenever it changes
+  useEffect(() => {
+    if (deletionProgress) {
+      localStorage.setItem("agentDeletionProgress", JSON.stringify(deletionProgress));
+    } else {
+      localStorage.removeItem("agentDeletionProgress");
+    }
+  }, [deletionProgress]);
+
+  // Save deleting status to localStorage
+  useEffect(() => {
+    if (deleting) {
+      localStorage.setItem("agentDeleting", "true");
+    } else {
+      localStorage.removeItem("agentDeleting");
+    }
+  }, [deleting]);
 
   // Auto-select all candidates on load if none are selected
   useEffect(() => {
@@ -184,6 +217,9 @@ export default function AgentPage() {
       }
 
       const data = await response.json();
+      // Clear cached candidates to force fresh fetch
+      localStorage.removeItem("agentCandidates");
+      localStorage.removeItem("agentSelectedIds");
       // Refresh candidates after running suggestions
       await fetchCandidates();
       showToast(
@@ -275,6 +311,10 @@ export default function AgentPage() {
               setDeletionProgress(null);
               setSelectedIds(new Set());
               localStorage.removeItem("agentSelectedIds");
+              localStorage.removeItem("agentDeletionProgress");
+              localStorage.removeItem("agentDeleting");
+              // Clear cached candidates to force fresh fetch
+              localStorage.removeItem("agentCandidates");
               await fetchCandidates();
               showToast(
                 `Successfully deleted ${data.deleted} email${
@@ -298,6 +338,8 @@ export default function AgentPage() {
       }
     } catch (err) {
       setDeletionProgress(null);
+      localStorage.removeItem("agentDeletionProgress");
+      localStorage.removeItem("agentDeleting");
       setError(
         err instanceof Error ? err.message : "Failed to delete messages"
       );
@@ -307,6 +349,7 @@ export default function AgentPage() {
       );
     } finally {
       setDeleting(false);
+      localStorage.removeItem("agentDeleting");
     }
   }
 
