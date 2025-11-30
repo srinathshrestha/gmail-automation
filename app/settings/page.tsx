@@ -1,10 +1,11 @@
 // Settings page
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/use-session";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AccountInfo } from "@/components/settings/account-info";
+import { AccountList } from "@/components/settings/account-list";
 import { SyncControls } from "@/components/settings/sync-controls";
 import { SenderSelection } from "@/components/settings/sender-selection";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,15 @@ export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [accountInfo, setAccountInfo] = useState<{
-    email: string;
+    accounts: Array<{
+      id: string;
+      emailAddress: string;
+      isActive: boolean;
+    }>;
+    activeAccount: {
+      id: string;
+      emailAddress: string;
+    } | null;
     lastSyncedAt: string | null;
     lastClassificationAt: string | null;
   } | null>(null);
@@ -285,9 +294,12 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Always show AccountInfo card with static headers, only skeleton the data */}
+      {/* Account management */}
+      <AccountList />
+
+      {/* Account info for active account */}
       <AccountInfo
-        email={accountInfo?.email || null}
+        email={accountInfo?.activeAccount?.emailAddress || null}
         lastSyncedAt={accountInfo?.lastSyncedAt || null}
         lastClassificationAt={accountInfo?.lastClassificationAt || null}
         loading={loading}

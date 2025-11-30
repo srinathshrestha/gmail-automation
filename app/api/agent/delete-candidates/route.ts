@@ -2,27 +2,26 @@
 // Returns list of deletion candidates for user review
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/session";
 import { db, messages } from "@/lib/db";
-import { getUserGoogleAccount } from "@/lib/auth-helpers";
+import { getActiveGoogleAccount } from "@/lib/auth-helpers";
 import { formatDistanceToNow } from "date-fns";
 import { eq, and, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = session.userId;
 
-    // Get GoogleAccount
-    const account = await getUserGoogleAccount(userId);
+    // Get active GoogleAccount
+    const account = await getActiveGoogleAccount(userId);
     if (!account) {
-      return NextResponse.json({ error: "No Google account found" }, { status: 404 });
+      return NextResponse.json({ error: "No active Google account found. Please connect a Gmail account in settings." }, { status: 404 });
     }
 
     // Parse query parameters

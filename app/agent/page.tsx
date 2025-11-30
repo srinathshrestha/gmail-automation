@@ -1,7 +1,7 @@
 // Agent suggestions page
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/use-session";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CandidateList } from "@/components/agent/candidate-list";

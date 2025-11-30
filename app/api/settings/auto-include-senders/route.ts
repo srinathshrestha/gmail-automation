@@ -1,19 +1,18 @@
 // API route for managing auto-include senders
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { getUserGoogleAccount } from "@/lib/auth-helpers";
+import { getSession } from "@/lib/session";
+import { getActiveGoogleAccount } from "@/lib/auth-helpers";
 import { db, googleAccounts } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const account = await getUserGoogleAccount(session.user.id);
+    const account = await getActiveGoogleAccount(session.userId);
     if (!account) {
       return NextResponse.json(
         { error: "No Google account found" },
@@ -39,8 +38,8 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -54,10 +53,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const account = await getUserGoogleAccount(session.user.id);
+    const account = await getActiveGoogleAccount(session.userId);
     if (!account) {
       return NextResponse.json(
-        { error: "No Google account found" },
+        {
+          error:
+            "No active Google account found. Please connect a Gmail account in settings.",
+        },
         { status: 404 }
       );
     }

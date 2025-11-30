@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { SessionProvider } from "@/components/session-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { ToastContainer } from "@/components/ui/toast";
@@ -28,13 +27,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SessionProvider>
-            <Nav />
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-              {children}
-            </main>
-            <ToastContainer />
-          </SessionProvider>
+          <Nav />
+          <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+            {children}
+          </main>
+          <ToastContainer />
         </ThemeProvider>
       </body>
     </html>

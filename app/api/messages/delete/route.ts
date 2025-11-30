@@ -2,11 +2,10 @@
 // Allows users to manually delete selected messages
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/session";
 import { getGmailClient, trashMessage } from "@/lib/gmail-client";
 import { db, messages } from "@/lib/db";
-import { getUserGoogleAccount } from "@/lib/auth-helpers";
+import { getActiveGoogleAccount } from "@/lib/auth-helpers";
 import { recordManualDeletion } from "@/lib/learning";
 import { eq, and, inArray } from "drizzle-orm";
 
@@ -22,12 +21,12 @@ function sendProgress(
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = session.userId;
 
     // Get request body
     const body = await request.json();
@@ -40,10 +39,10 @@ export async function POST(request: NextRequest) {
     // Check if streaming is requested (for progress updates)
     const streamProgress = body.stream === true;
 
-    // Get GoogleAccount
-    const account = await getUserGoogleAccount(userId);
+    // Get active GoogleAccount
+    const account = await getActiveGoogleAccount(userId);
     if (!account) {
-      return NextResponse.json({ error: "No Google account found" }, { status: 404 });
+      return NextResponse.json({ error: "No active Google account found. Please connect a Gmail account in settings." }, { status: 404 });
     }
 
     // Get Gmail client

@@ -1,6 +1,6 @@
 "use client";
 
-// Login page with username/password authentication
+// Registration page with username/password
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,40 +8,58 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/ui/icon";
-import { Skeleton } from "@/components/ui/skeleton";
 import { showToast } from "@/components/ui/toast";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      showToast("Passwords do not match", "error");
+      return;
+    }
+
+    // Validate password length
+    if (password.length < 8) {
+      showToast("Password must be at least 8 characters", "error");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({
+          username,
+          password,
+          email: email || undefined,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || "Registration failed");
       }
 
-      showToast("Logged in successfully", "success");
+      showToast("Account created successfully", "success");
 
       // Redirect to dashboard
       router.push("/dashboard");
       router.refresh();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to login", "error");
+      showToast(error instanceof Error ? error.message : "Failed to create account", "error");
     } finally {
       setLoading(false);
     }
@@ -54,9 +72,9 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Icon name="Mail" className="h-12 w-12 text-primary" size={48} />
           </div>
-          <CardTitle className="text-xl sm:text-2xl">Welcome to InboxJanitor</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Create an Account</CardTitle>
           <CardDescription className="text-sm sm:text-base">
-            Sign in to manage your Gmail inbox
+            Sign up to start managing your Gmail inbox
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -71,7 +89,22 @@ export default function LoginPage() {
                 required
                 minLength={3}
                 maxLength={50}
-                placeholder="Enter your username"
+                pattern="[a-zA-Z0-9_]+"
+                placeholder="Choose a username (letters, numbers, underscores only)"
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Username can only contain letters, numbers, and underscores
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email (Optional)</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
                 disabled={loading}
               />
             </div>
@@ -84,7 +117,20 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                placeholder="Enter your password"
+                placeholder="At least 8 characters"
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                placeholder="Confirm your password"
                 disabled={loading}
               />
             </div>
@@ -94,13 +140,13 @@ export default function LoginPage() {
               size="lg"
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
           </form>
           <p className="mt-4 text-xs sm:text-sm text-center text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Sign up
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary hover:underline">
+              Sign in
             </Link>
           </p>
         </CardContent>
@@ -108,3 +154,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

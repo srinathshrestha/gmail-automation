@@ -1,7 +1,7 @@
 // Messages explorer page
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/use-session";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { MessageTable } from "@/components/messages/message-table";

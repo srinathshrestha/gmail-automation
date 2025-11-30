@@ -2,7 +2,7 @@
 
 // Navigation component
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "@/lib/use-session";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -11,7 +11,7 @@ import { Logo } from "@/components/logo";
 import { useState } from "react";
 
 export function Nav() {
-  const { data: session, status } = useSession();
+  const { data: session, status, signOut } = useSession();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -81,10 +81,10 @@ export function Nav() {
 
             <div className="flex items-center gap-4 ml-4">
               <span className="text-sm text-muted-foreground hidden lg:inline">
-                {session.user?.email}
+                {session.user?.username}
               </span>
               <ThemeToggle />
-              <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <Button variant="outline" size="sm" onClick={async () => await signOut()}>
                 <Icon name="LogOut" className="mr-2" size={16} />
                 <span className="hidden lg:inline">Sign Out</span>
               </Button>
@@ -128,14 +128,14 @@ export function Nav() {
               })}
               <div className="pt-2 border-t mt-2">
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  {session.user?.email}
+                  {session.user?.username}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => {
-                    signOut();
+                  onClick={async () => {
+                    await signOut();
                     setMobileMenuOpen(false);
                   }}
                 >

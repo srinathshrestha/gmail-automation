@@ -2,7 +2,7 @@
 // Optimized with caching to prevent unnecessary reloads on tab switching
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/use-session";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { StatsCard } from "@/components/dashboard/stats-card";

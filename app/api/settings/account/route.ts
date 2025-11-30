@@ -1,58 +1,73 @@
 // Settings account API route
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getSession } from "@/lib/session";
 import { db, messages } from "@/lib/db";
-import { getUserGoogleAccount } from "@/lib/auth-helpers";
+import { getUserGoogleAccounts, getActiveGoogleAccount } from "@/lib/auth-helpers";
 import { eq, and, desc, isNotNull } from "drizzle-orm";
 
 export async function GET() {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = session.userId;
 
-    // Get GoogleAccount
-    const account = await getUserGoogleAccount(userId);
-    if (!account) {
-      return NextResponse.json({ error: "No Google account found" }, { status: 404 });
+    // Get all GoogleAccounts
+    const allAccounts = await getUserGoogleAccounts(userId);
+    const activeAccount = await getActiveGoogleAccount(userId);
+
+    // Get last synced message for active account
+    let lastSyncedAt: string | null = null;
+    let lastClassificationAt: string | null = null;
+
+    if (activeAccount) {
+      const lastSyncedMessages = await db
+        .select({ lastSyncedAt: messages.lastSyncedAt })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.userId, userId),
+            eq(messages.googleAccountId, activeAccount.id)
+          )
+        )
+        .orderBy(desc(messages.lastSyncedAt))
+        .limit(1);
+
+      const lastClassifiedMessages = await db
+        .select({ updatedAt: messages.updatedAt })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.userId, userId),
+            eq(messages.googleAccountId, activeAccount.id),
+            isNotNull(messages.aiDeleteScore)
+          )
+        )
+        .orderBy(desc(messages.updatedAt))
+        .limit(1);
+
+      lastSyncedAt = lastSyncedMessages[0]?.lastSyncedAt.toISOString() || null;
+      lastClassificationAt = lastClassifiedMessages[0]?.updatedAt.toISOString() || null;
     }
 
-    // Get last synced message
-    const lastSyncedMessages = await db
-      .select({ lastSyncedAt: messages.lastSyncedAt })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.userId, userId),
-          eq(messages.googleAccountId, account.id)
-        )
-      )
-      .orderBy(desc(messages.lastSyncedAt))
-      .limit(1);
-
-    // Get last classified message (where aiDeleteScore is not null)
-    const lastClassifiedMessages = await db
-      .select({ updatedAt: messages.updatedAt })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.userId, userId),
-          eq(messages.googleAccountId, account.id),
-          isNotNull(messages.aiDeleteScore)
-        )
-      )
-      .orderBy(desc(messages.updatedAt))
-      .limit(1);
-
     return NextResponse.json({
-      email: account.emailAddress,
-      lastSyncedAt: lastSyncedMessages[0]?.lastSyncedAt.toISOString() || null,
-      lastClassificationAt: lastClassifiedMessages[0]?.updatedAt.toISOString() || null,
+      accounts: allAccounts.map((acc) => ({
+        id: acc.id,
+        emailAddress: acc.emailAddress,
+        isActive: acc.isActive,
+        createdAt: acc.createdAt.toISOString(),
+      })),
+      activeAccount: activeAccount
+        ? {
+            id: activeAccount.id,
+            emailAddress: activeAccount.emailAddress,
+          }
+        : null,
+      lastSyncedAt,
+      lastClassificationAt,
     });
   } catch (error) {
     console.error("Error fetching account info:", error);

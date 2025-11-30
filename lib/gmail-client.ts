@@ -3,7 +3,7 @@
 
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
-import { getUserGoogleAccount } from "./auth-helpers";
+import { getActiveGoogleAccount } from "./auth-helpers";
 import { decrypt, encrypt } from "./encryption";
 import { db, googleAccounts } from "./db";
 import { eq } from "drizzle-orm";
@@ -16,10 +16,10 @@ export async function getGmailClient(userId: string): Promise<{
   gmail: ReturnType<typeof google.gmail>;
   oauth2Client: OAuth2Client;
 }> {
-  // Load GoogleAccount from database
-  const account = await getUserGoogleAccount(userId);
+  // Load active GoogleAccount from database
+  const account = await getActiveGoogleAccount(userId);
   if (!account) {
-    throw new Error("No Google account found for user");
+    throw new Error("No active Google account found for user");
   }
 
   // Decrypt refresh token

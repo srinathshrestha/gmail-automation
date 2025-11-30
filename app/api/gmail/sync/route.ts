@@ -3,9 +3,8 @@
 // Uses chunked processing to avoid Vercel timeout (300s limit)
 // Tracks progress in database for resumable syncs
 
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { NextResponse } from "next/server";
+import { getSession } from "@/lib/session";
 import {
   getGmailClient,
   listMessages,
@@ -20,7 +19,7 @@ import {
   syncProgress,
   type SyncProgress,
 } from "@/lib/db";
-import { getUserGoogleAccount } from "@/lib/auth-helpers";
+import { getActiveGoogleAccount } from "@/lib/auth-helpers";
 import { eq, and, desc } from "drizzle-orm";
 
 // Messages to process per chunk (smaller batches to avoid timeout)
@@ -41,18 +40,21 @@ const TIMEOUT_SAFETY_MARGIN = 50; // Leave 50 seconds buffer before 300s timeout
 export async function GET() {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = session.userId;
 
-    // Get GoogleAccount
-    const account = await getUserGoogleAccount(userId);
+    // Get active GoogleAccount
+    const account = await getActiveGoogleAccount(userId);
     if (!account) {
       return NextResponse.json(
-        { error: "No Google account found" },
+        {
+          error:
+            "No active Google account found. Please connect a Gmail account in settings.",
+        },
         { status: 404 }
       );
     }
@@ -116,7 +118,7 @@ export async function GET() {
   }
 }
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
   // Track start time to avoid timeout
   const startTime = Date.now();
   const maxExecutionTime = (300 - TIMEOUT_SAFETY_MARGIN) * 1000; // Convert to milliseconds
@@ -126,18 +128,21 @@ export async function POST(_request: NextRequest) {
 
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = session.userId;
 
-    // Get GoogleAccount
-    const account = await getUserGoogleAccount(userId);
+    // Get active GoogleAccount
+    const account = await getActiveGoogleAccount(userId);
     if (!account) {
       return NextResponse.json(
-        { error: "No Google account found" },
+        {
+          error:
+            "No active Google account found. Please connect a Gmail account in settings.",
+        },
         { status: 404 }
       );
     }

@@ -42,14 +42,14 @@ export const users = pgTable(
   "User",
   {
     id: text("id").primaryKey().$defaultFn(() => createId()),
-    email: text("email").notNull().unique(),
-    googleId: text("googleId").notNull().unique(),
+    username: text("username").notNull().unique(), // Username for login
+    passwordHash: text("passwordHash").notNull(), // Hashed password using bcrypt
+    email: text("email"), // Optional email (users may have multiple Gmail accounts)
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
   },
   (table) => ({
-    emailIdx: uniqueIndex("User_email_key").on(table.email),
-    googleIdIdx: uniqueIndex("User_googleId_key").on(table.googleId),
+    usernameIdx: uniqueIndex("User_username_key").on(table.username),
   })
 );
 
@@ -67,11 +67,17 @@ export const googleAccounts = pgTable(
     accessTokenExpiresAt: timestamp("accessTokenExpiresAt"),
     scopes: text("scopes").array().notNull(), // Postgres text array
     autoIncludeSenders: text("autoIncludeSenders").array().notNull().default([]), // Senders to auto-include in suggestions
+    isActive: boolean("isActive").notNull().default(false), // Marks which account is currently active
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
   },
   (table) => ({
     userIdIdx: index("GoogleAccount_userId_idx").on(table.userId),
+    // Unique constraint: one user can only have one account per email address
+    uniqueUserEmailIdx: uniqueIndex("GoogleAccount_userId_emailAddress_key").on(
+      table.userId,
+      table.emailAddress
+    ),
   })
 );
 
