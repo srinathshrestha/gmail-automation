@@ -224,9 +224,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <div className="space-y-4 sm:space-y-6">
       {/* Always show static header */}
-      <div>
+      <div className="px-1 sm:px-0">
         <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground text-sm sm:text-base">
           Overview of your email inbox
@@ -234,7 +234,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards - static labels always visible */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Emails"
           value={stats?.totalEmails ? stats.totalEmails.toLocaleString() : null}
@@ -282,8 +282,8 @@ export default function DashboardPage() {
       {stats?.lastSyncedAt && (
         <Card>
           <CardHeader>
-            <CardTitle>Last Sync</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-base sm:text-lg">Last Sync</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               {new Date(stats.lastSyncedAt).toLocaleString()}
             </CardDescription>
           </CardHeader>
