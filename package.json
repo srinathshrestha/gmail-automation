@@ -21,6 +21,8 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@vercel/analytics": "^1.6.0",
+    "@vercel/speed-insights": "^1.2.0",
     "ai": "^5.0.104",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
