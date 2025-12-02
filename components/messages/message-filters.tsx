@@ -8,9 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface MessageFiltersProps {
   senderFilter: string;
   categoryFilter: string;
+  readFilter: string;
   showOnlyCandidates: boolean;
   onSenderChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
+  onReadChange: (value: string) => void;
   onCandidatesChange: (checked: boolean) => void;
   senders: string[];
   categories: string[];
@@ -19,9 +21,11 @@ interface MessageFiltersProps {
 export function MessageFilters({
   senderFilter,
   categoryFilter,
+  readFilter,
   showOnlyCandidates,
   onSenderChange,
   onCategoryChange,
+  onReadChange,
   onCandidatesChange,
   senders,
   categories,
@@ -58,6 +62,20 @@ export function MessageFilters({
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex-1 min-w-[150px] space-y-2">
+        <Label htmlFor="read-filter">Read Status</Label>
+        <Select value={readFilter} onValueChange={onReadChange}>
+          <SelectTrigger id="read-filter">
+            <SelectValue placeholder="All emails" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All emails</SelectItem>
+            <SelectItem value="unread">Unread only</SelectItem>
+            <SelectItem value="read">Read only</SelectItem>
           </SelectContent>
         </Select>
       </div>

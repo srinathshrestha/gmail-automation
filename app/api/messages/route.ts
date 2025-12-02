@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const sender = searchParams.get("sender");
     const category = searchParams.get("category");
+    const readStatus = searchParams.get("readStatus"); // "all", "read", or "unread"
     const candidatesOnly = searchParams.get("candidatesOnly") === "true";
     const limit = parseInt(searchParams.get("limit") || "100", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
@@ -49,13 +50,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Query messages
-    const messageList = await db
+    let messageList = await db
       .select()
       .from(messages)
       .where(and(...conditions))
       .orderBy(desc(messages.internalDate))
-      .limit(limit)
+      .limit(limit * 2) // Fetch more to account for client-side filtering
       .offset(offset);
+
+    // Filter by read status (labels array contains "UNREAD" for unread messages)
+    if (readStatus === "unread") {
+      messageList = messageList.filter((msg) => msg.labels.includes("UNREAD"));
+    } else if (readStatus === "read") {
+      messageList = messageList.filter((msg) => !msg.labels.includes("UNREAD"));
+    }
+
+    // Apply limit after filtering
+    messageList = messageList.slice(0, limit);
 
     return NextResponse.json({
       success: true,

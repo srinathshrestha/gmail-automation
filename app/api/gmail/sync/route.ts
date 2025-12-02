@@ -22,11 +22,14 @@ import {
 import { getActiveGoogleAccount } from "@/lib/auth-helpers";
 import { eq, and, desc } from "drizzle-orm";
 
-// Messages to process per chunk (smaller batches to avoid timeout)
-const MESSAGES_PER_CHUNK = 50;
+// Maximum messages to sync per account
+const MAX_MESSAGES_TO_SYNC = 400;
+
+// Messages to process per chunk (larger batches for efficiency)
+const MESSAGES_PER_CHUNK = 100;
 
 // Maximum messages to fetch per Gmail API call
-const MAX_MESSAGES_PER_API_CALL = 500;
+const MAX_MESSAGES_PER_API_CALL = 400;
 
 // Days to look back for messages (90 days)
 const DAYS_TO_SYNC = 90;
@@ -242,9 +245,13 @@ export async function POST() {
 
       // Update total messages if this is the first batch
       if (!isResuming && totalMessages === 0) {
-        totalMessages = gmailMessages.length;
-        // If there's a nextPageToken, we know there are more messages
-        // We'll update totalMessages as we discover more
+        // Cap at MAX_MESSAGES_TO_SYNC (400)
+        totalMessages = Math.min(gmailMessages.length, MAX_MESSAGES_TO_SYNC);
+        // Clear nextPageToken if we have enough messages
+        if (gmailMessages.length >= MAX_MESSAGES_TO_SYNC) {
+          gmailMessages = gmailMessages.slice(0, MAX_MESSAGES_TO_SYNC);
+          nextPageToken = undefined; // Don't fetch more
+        }
       }
     } catch (error: unknown) {
       console.error("Error listing Gmail messages:", error);

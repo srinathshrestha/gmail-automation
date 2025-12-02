@@ -118,9 +118,17 @@ export function MessageTable({
                 />
               </TableCell>
               <TableCell className="font-medium">
-                {message.senderName || message.sender}
+                <div className="flex items-center gap-2">
+                  {/* Read/Unread indicator */}
+                  {message.labels.includes("UNREAD") ? (
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Unread" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-muted shrink-0" title="Read" />
+                  )}
+                  <span>{message.senderName || message.sender}</span>
+                </div>
                 {message.hasUserReplied && (
-                  <Badge variant="outline" className="ml-2">
+                  <Badge variant="outline" className="ml-4 mt-1">
                     Replied
                   </Badge>
                 )}

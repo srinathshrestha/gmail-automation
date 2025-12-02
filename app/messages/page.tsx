@@ -40,6 +40,7 @@ export default function MessagesPage() {
   // Filters
   const [senderFilter, setSenderFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [readFilter, setReadFilter] = useState("all");
   const [showOnlyCandidates, setShowOnlyCandidates] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -70,6 +71,7 @@ export default function MessagesPage() {
         if (
           filters.sender === senderFilter &&
           filters.category === categoryFilter &&
+          filters.read === readFilter &&
           filters.candidates === showOnlyCandidates
         ) {
           setMessages(data);
@@ -104,7 +106,7 @@ export default function MessagesPage() {
       fetchMessages(messages.length > 0); // Silent if we have data
       fetchFilterOptions();
     }
-  }, [status, session, router, senderFilter, categoryFilter, showOnlyCandidates]);
+  }, [status, session, router, senderFilter, categoryFilter, readFilter, showOnlyCandidates]);
 
   // Handle visibility change (tab switching) - prevent unnecessary reloads
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function MessagesPage() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [status, senderFilter, categoryFilter, showOnlyCandidates]);
+  }, [status, senderFilter, categoryFilter, readFilter, showOnlyCandidates]);
 
   async function fetchMessages(silent = false) {
     // Prevent concurrent fetches
@@ -141,6 +143,7 @@ export default function MessagesPage() {
       const params = new URLSearchParams();
       if (senderFilter !== "all") params.append("sender", senderFilter);
       if (categoryFilter !== "all") params.append("category", categoryFilter);
+      if (readFilter !== "all") params.append("readStatus", readFilter);
       if (showOnlyCandidates) params.append("candidatesOnly", "true");
 
       const response = await fetch(`/api/messages?${params.toString()}`, {
@@ -176,6 +179,7 @@ export default function MessagesPage() {
         filters: {
           sender: senderFilter,
           category: categoryFilter,
+          read: readFilter,
           candidates: showOnlyCandidates,
         }
       }));
@@ -395,9 +399,11 @@ export default function MessagesPage() {
           <MessageFilters
             senderFilter={senderFilter}
             categoryFilter={categoryFilter}
+            readFilter={readFilter}
             showOnlyCandidates={showOnlyCandidates}
             onSenderChange={setSenderFilter}
             onCategoryChange={setCategoryFilter}
+            onReadChange={setReadFilter}
             onCandidatesChange={setShowOnlyCandidates}
             senders={senders}
             categories={categories}
