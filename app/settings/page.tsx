@@ -194,17 +194,17 @@ function SettingsPageContent() {
               
               // Give the animated counters time to finish their animation (400ms + 100ms buffer)
               setTimeout(() => {
-                showToast(
-                  `Sync completed! Synced ${data.processedMessages} messages (${data.created} new, ${data.updated} updated).`,
-                  "success"
-                );
+              showToast(
+                `Sync completed! Synced ${data.processedMessages} messages (${data.created} new, ${data.updated} updated).`,
+                "success"
+              );
               }, 500);
               
               await fetchAccountInfo();
               
               // Clear progress after a short delay to let users see the final numbers
               setTimeout(() => {
-                setSyncProgress(null);
+              setSyncProgress(null);
                 localStorage.removeItem("syncProgress");
               }, 1500);
             } else if (data.status === "failed") {

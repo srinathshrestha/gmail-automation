@@ -111,7 +111,7 @@ export default function AgentPage() {
       // Only fetch if we don't have cached data
       const savedCandidates = localStorage.getItem("agentCandidates");
       if (!savedCandidates) {
-        fetchCandidates();
+      fetchCandidates();
       } else {
         setLoading(false);
       }

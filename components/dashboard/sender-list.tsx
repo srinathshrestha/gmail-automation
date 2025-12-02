@@ -27,44 +27,44 @@ export function SenderList({ senders, loading }: SenderListProps) {
       <CardContent className="px-0 sm:px-6">
         {/* Wrap table in a scrollable container for mobile */}
         <div className="overflow-x-auto">
-          <Table>
-            {/* Always show static table headers */}
-            <TableHeader>
-              <TableRow>
+        <Table>
+          {/* Always show static table headers */}
+          <TableHeader>
+            <TableRow>
                 <TableHead className="min-w-[180px] sm:min-w-0">Sender</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right hidden sm:table-cell">Deleted</TableHead>
                 <TableHead className="text-right hidden sm:table-cell">Kept</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading || senders === null ? (
-                // Show skeleton rows for data only
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading || senders === null ? (
+              // Show skeleton rows for data only
+              [...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
                       <Skeleton className="h-4 w-32 sm:w-48" />
-                    </TableCell>
-                    <TableCell className="text-right">
+                  </TableCell>
+                  <TableCell className="text-right">
                       <Skeleton className="h-4 w-8 sm:w-12 ml-auto" />
-                    </TableCell>
+                  </TableCell>
                     <TableCell className="text-right hidden sm:table-cell">
-                      <Skeleton className="h-4 w-12 ml-auto" />
-                    </TableCell>
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </TableCell>
                     <TableCell className="text-right hidden sm:table-cell">
-                      <Skeleton className="h-4 w-12 ml-auto" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : senders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    No senders found
+                    <Skeleton className="h-4 w-12 ml-auto" />
                   </TableCell>
                 </TableRow>
-              ) : (
-                senders.map((sender) => (
-                  <TableRow key={sender.sender}>
+              ))
+            ) : senders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  No senders found
+                </TableCell>
+              </TableRow>
+            ) : (
+              senders.map((sender) => (
+                <TableRow key={sender.sender}>
                     <TableCell className="font-medium">
                       {/* Truncate long email addresses on mobile */}
                       <div className="truncate max-w-[160px] sm:max-w-none" title={sender.sender}>
@@ -74,11 +74,11 @@ export function SenderList({ senders, loading }: SenderListProps) {
                     <TableCell className="text-right whitespace-nowrap">{sender.totalCount}</TableCell>
                     <TableCell className="text-right whitespace-nowrap hidden sm:table-cell">{sender.deletedByAppCount}</TableCell>
                     <TableCell className="text-right whitespace-nowrap hidden sm:table-cell">{sender.manuallyKeptCount}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
         </div>
       </CardContent>
     </Card>

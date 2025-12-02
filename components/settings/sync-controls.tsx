@@ -79,7 +79,7 @@ export function SyncControls({
                     </span>
                     <span className="text-sm font-semibold text-primary tabular-nums">
                       <AnimatedCounter value={syncProgress.processedMessages} className="inline" /> / {syncProgress.totalMessages || "..."}
-                    </span>
+                </span>
                   </div>
                 </div>
               </div>
@@ -101,7 +101,7 @@ export function SyncControls({
                   >
                     <span className="text-[10px] font-bold text-primary-foreground drop-shadow-md">
                       {Math.round(syncProgress.progress || 0)}%
-                    </span>
+                </span>
                   </div>
                 </div>
               </div>
@@ -160,7 +160,7 @@ export function SyncControls({
                         : 'text-gray-700 dark:text-gray-300'
                     }`}>
                       Errors
-                    </span>
+                </span>
                   </div>
                   <AnimatedCounter 
                     value={syncProgress.errors}
@@ -179,8 +179,8 @@ export function SyncControls({
                 <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 p-2.5 animate-pulse">
                   <Icon name="Info" className="h-4 w-4 text-primary shrink-0 mt-0.5" size={16} />
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    More messages to process - sync will continue automatically
-                  </p>
+                  More messages to process - sync will continue automatically
+                </p>
                 </div>
               )}
               
@@ -188,8 +188,8 @@ export function SyncControls({
                 <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5">
                   <Icon name="Clock" className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" size={16} />
                   <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-                    Sync timed out - will resume automatically
-                  </p>
+                  Sync timed out - will resume automatically
+                </p>
                 </div>
               )}
             </div>

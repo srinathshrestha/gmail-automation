@@ -208,7 +208,54 @@ export async function getSenderPenalty(
     return 1.0; // No penalty if no data
   }
 
-  const stat = stats[0];
+  return calculatePenalty(stats[0]);
+}
+
+/**
+ * Batch fetch sender penalties for multiple senders (much faster!)
+ * Returns a Map of sender -> penalty score
+ */
+export async function getBatchSenderPenalties(
+  googleAccountId: string,
+  senders: string[]
+): Promise<Map<string, number>> {
+  if (senders.length === 0) {
+    return new Map();
+  }
+
+  const { inArray } = await import("drizzle-orm");
+  
+  const stats = await db
+    .select()
+    .from(senderStats)
+    .where(
+      and(
+        eq(senderStats.googleAccountId, googleAccountId),
+        inArray(senderStats.sender, senders)
+      )
+    );
+
+  const penaltyMap = new Map<string, number>();
+  
+  // Calculate penalties for all senders at once
+  for (const stat of stats) {
+    penaltyMap.set(stat.sender, calculatePenalty(stat));
+  }
+
+  // Fill in 1.0 (no penalty) for senders with no stats
+  for (const sender of senders) {
+    if (!penaltyMap.has(sender)) {
+      penaltyMap.set(sender, 1.0);
+    }
+  }
+
+  return penaltyMap;
+}
+
+/**
+ * Helper to calculate penalty from stats
+ */
+function calculatePenalty(stat: any): number {
   // Calculate keep ratio (consider both agent deletions and manual deletions)
   const totalActions = stat.manuallyKeptCount + stat.deletedByAppCount + stat.manuallyDeletedCount;
   if (totalActions === 0) {

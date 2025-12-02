@@ -108,15 +108,15 @@ export async function GET(request: NextRequest) {
     });
 
     try {
-      await connectGoogleAccount(
-        stateData.userId,
-        email,
-        tokens.refresh_token,
-        tokens.access_token,
-        expiresAt,
-        tokens.scope?.split(" ") || [],
-        false // Don't auto-activate, user can choose
-      );
+    await connectGoogleAccount(
+      stateData.userId,
+      email,
+      tokens.refresh_token,
+      tokens.access_token,
+      expiresAt,
+      tokens.scope?.split(" ") || [],
+      false // Don't auto-activate, user can choose
+    );
       console.log("Successfully connected Google account:", email);
     } catch (connectError) {
       console.error("Failed to connect Google account:", connectError);

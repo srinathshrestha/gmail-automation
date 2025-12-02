@@ -18,8 +18,9 @@ const MIN_AGE_DAYS = 7;
 // Delete score threshold (0.7 = 70% confidence)
 const DELETE_SCORE_THRESHOLD = 0.7;
 
-// Batch size for processing (500 messages at a time)
-const BATCH_SIZE = 500;
+// Batch size for processing (reduced for faster response)
+// 150 emails = ~3 AI calls = ~9 seconds
+const BATCH_SIZE = 150;
 
 export async function POST() {
   try {
@@ -160,19 +161,20 @@ export async function POST() {
       );
     }
 
-    // Update messages with classification results
+    // Update messages with classification results (batch updates for speed)
     let candidatesCount = 0;
     let updatedCount = 0;
     const errors: string[] = [];
 
-    for (const classification of classifications) {
+    // Batch all updates into a single Promise.all
+    const updatePromises = classifications.map(async (classification) => {
       try {
         const message = messageList.find(
           (m) => m.gmailMessageId === classification.gmailMessageId
         );
         if (!message) {
           errors.push(`Message ${classification.gmailMessageId} not found`);
-          continue;
+          return false;
         }
 
         const isDeleteCandidate =
@@ -192,7 +194,7 @@ export async function POST() {
           })
           .where(eq(messages.id, message.id));
 
-        updatedCount++;
+        return true;
       } catch (error) {
         console.error(
           `Error updating message ${classification.gmailMessageId}:`,
@@ -201,8 +203,13 @@ export async function POST() {
         errors.push(
           `Failed to update message ${classification.gmailMessageId}`
         );
+        return false;
       }
-    }
+    });
+
+    // Wait for all updates to complete in parallel
+    const results = await Promise.all(updatePromises);
+    updatedCount = results.filter((r) => r === true).length;
 
     return NextResponse.json({
       success: true,

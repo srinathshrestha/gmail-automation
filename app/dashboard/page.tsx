@@ -92,7 +92,7 @@ export default function DashboardPage() {
   async function fetchStats(silent = false) {
     // Prevent concurrent fetches
     if (fetchInProgressRef.current) return;
-
+    
     try {
       // Only show loading if we don't have stats yet
       if (!silent && stats === null) {
