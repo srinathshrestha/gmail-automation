@@ -36,9 +36,9 @@ export default function Home() {
       {/* Hero Section */}
       <main className="flex-1 flex items-center justify-center px-4 py-20">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          {/* Logo */}
+          {/* Logo - use iconOnly for proper dark mode support */}
           <div className="flex justify-center mb-8">
-            <Logo size={80} className="h-16 w-16 sm:h-20 sm:w-20" />
+            <Logo size={80} iconOnly className="h-16 w-16 sm:h-20 sm:w-20" />
           </div>
 
           {/* Headline */}
